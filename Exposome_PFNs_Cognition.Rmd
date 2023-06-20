@@ -1,0 +1,787 @@
+---
+title: "Exposome_PFNs_Cognition"
+output: html_document
+date: '2023-04-03'
+---
+
+
+# The purpose of this analysis is to relate measures of exposome (derived from a longitudinal bifactor analysis) to 1) cognitive functioning and 2) personalized functional brain network topography in youth from the ABCD study.  
+
+# Load in required packages
+```{r}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(lsr)
+library(lme4)
+library(lmerTest)
+library(mediation)
+library(ggcorrplot)
+library(corrplot)
+library(RColorBrewer)
+library(glmnet)
+library(mgcv)
+library(gamm4)
+library(readr)
+library(devtools)
+install_github("jfortin1/neuroCombatData")
+install_github("jfortin1/neuroCombat_Rpackage")
+library(neuroCombat)
+library(R.matlab)
+library(mgcv)
+library(ggplot2)
+library(visreg)
+library(ggtext)
+library(sjPlot)
+devtools::install_github("johannesbjork/LaCroixColoR")
+library(LaCroixColoR)
+```
+
+
+# Load in the bifactor scores
+```{r}
+bifactor_scores<-read.csv("/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/abcd_longitudinal_factor_scores_7f_bifactor.csv")
+colnames(bifactor_scores)[1]<-"subjectkey"
+
+# Separate the time 0 (baseline) and time 2 (year 2) data
+bifactor_scores_T0 <- bifactor_scores[bifactor_scores$Timepoint=="baseline_year_1_arm_1",]
+bifactor_scores_T2 <- bifactor_scores[bifactor_scores$Timepoint=="2_year_follow_up_y_arm_1",]
+colnames(bifactor_scores_T2)<-c("subjectkey","ID_Timepoint","Timepoint","General_SES_T2","School_T2","Family_Values_T2","Family_Turmoil_T2","Dense_Urban_Poverty_T2","Extracurriculars_T2","Screen_Time_T2","Timepoint_numeric","Site")
+```
+
+
+# Plot the orthogonality of the bifactor scores
+```{r}
+bifactor_T0_forCorrPlot <- bifactor_scores_T0[,c("General_SES","School","Family_Values","Family_Turmoil","Dense_Urban_Poverty","Extracurriculars","Screen_Time")]
+colnames(bifactor_T0_forCorrPlot)<-c("Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time")
+corrplot(cor(bifactor_T0_forCorrPlot),method="number",col.lim = c(-1,1),tl.col="black")
+```
+
+
+# Load in the cognition data
+```{r}
+nihtb<-read.table("/Users/askeller/Documents/Kellernet_PrelimAnalysis/NihTB/abcd_tbss01.txt",header=TRUE)
+
+# Convert cognitive data to numeric values
+nihtb$nihtbx_flanker_uncorrected <- as.numeric(nihtb$nihtbx_flanker_uncorrected)
+nihtb$nihtbx_picvocab_uncorrected <- as.numeric(nihtb$nihtbx_picvocab_uncorrected)
+nihtb$nihtbx_pattern_uncorrected <- as.numeric(nihtb$nihtbx_pattern_uncorrected)
+nihtb$nihtbx_picture_uncorrected <- as.numeric(nihtb$nihtbx_picture_uncorrected)
+nihtb$nihtbx_reading_uncorrected <- as.numeric(nihtb$nihtbx_reading_uncorrected)
+
+# Extract and rename cognitive variables for baseline data and T2 data
+nihtb_T0 <- nihtb[nihtb$eventname=="baseline_year_1_arm_1",c("subjectkey","nihtbx_picvocab_uncorrected","nihtbx_flanker_uncorrected","nihtbx_pattern_uncorrected","nihtbx_reading_uncorrected","nihtbx_picture_uncorrected")]
+colnames(nihtb_T0)<-c("subjectkey","PicVocab","Flanker","Pattern","Reading","Picture")
+nihtb_T2 <- nihtb[nihtb$eventname=="2_year_follow_up_y_arm_1",c("subjectkey","nihtbx_picvocab_uncorrected","nihtbx_flanker_uncorrected","nihtbx_pattern_uncorrected","nihtbx_reading_uncorrected","nihtbx_picture_uncorrected")]
+colnames(nihtb_T2)<-c("subjectkey","PicVocab_T2","Flanker_T2","Pattern_T2","Reading_T2","Picture_T2")
+
+```
+
+
+
+# Load in Family and Site covariates
+```{r}
+family <-read.table("/Users/askeller/Documents/Kellernet_PrelimAnalysis/ses/acspsw03.txt",header=TRUE)
+family_T0<-family[family$eventname=="baseline_year_1_arm_1",]
+site_info <- readRDS("/Users/askeller/Documents/Kellernet_PrelimAnalysis/DEAP-siteID.rds")
+site_T0<-site_info[site_info$event_name=="baseline_year_1_arm_1",]
+colnames(site_T0)[1]<-"subjectkey"
+```
+
+
+
+# Load matched Discovery/Replication samples
+```{r}
+discrep<-read_tsv("/Users/askeller/Documents/Kellernet_PrelimAnalysis/participants.tsv")
+discrep.T0<-discrep[discrep$session_id=="ses-baselineYear1Arm1",c("participant_id","matched_group")]
+colnames(discrep.T0)[1]<-c("subjectkey")
+discrep.T0$subjectkey <- gsub(pattern="sub-NDAR",replacement="NDAR_", discrep.T0$subjectkey)
+discrep.T0<-discrep.T0 %>% distinct()
+```
+
+
+# Combine the data into one dataframe
+```{r}
+step1 <- merge(nihtb_T0,bifactor_scores_T0[,c("subjectkey",setdiff(colnames(bifactor_scores_T0),colnames(nihtb_T0)))],by="subjectkey")
+step2 <- merge(step1,family_T0[,c("subjectkey",setdiff(colnames(family_T0),colnames(step1)))],by="subjectkey")
+step3 <- merge(step2,site_T0[,c("subjectkey",setdiff(colnames(site_T0),colnames(step2)))],by="subjectkey")
+step4 <- merge(step3,discrep.T0[,c("subjectkey",setdiff(colnames(discrep.T0),colnames(step3)))],by="subjectkey")
+
+# this dataframe is n=11,871 with 58 variables
+```
+
+
+# Subset the participants with all data available for these analyses
+```{r}
+abcd.data<-step4[,c("subjectkey","matched_group","interview_age","sex","abcd_site","rel_family_id","race.6level","household.income","high.educ","sex_at_birth","General_SES","School","Family_Values","Family_Turmoil","Dense_Urban_Poverty","Extracurriculars","Screen_Time","PicVocab","Flanker","Picture","Pattern","Reading")]
+
+abcd.data<-abcd.data[complete.cases(abcd.data),]
+abcd.data.disc<-abcd.data[abcd.data$matched_group==1,]
+abcd.data.rep<-abcd.data[abcd.data$matched_group==2,]
+
+# final full dataframe is n=10,537 with 22 variables
+# Discovery: n=5,139, Replication: n=5,137
+```
+
+
+# Make sure age is numeric
+```{r}
+abcd.data$interview_age<-as.numeric(abcd.data$interview_age)
+abcd.data.disc$interview_age<-as.numeric(abcd.data.disc$interview_age)
+abcd.data.rep$interview_age<-as.numeric(abcd.data.rep$interview_age)
+```
+
+
+# Z-score everything, separately in disc. and rep. datasets (note: it's always important to do this z-scoring separately in each of our samples since later on we will be using these datasets as training vs. test sets and don't want to introduce any contamination across our independent samples):
+```{r}
+abcd.data.disc$PicVocab<-(abcd.data.disc$PicVocab-mean(abcd.data.disc$PicVocab,na.rm=TRUE))/sd(abcd.data.disc$PicVocab,na.rm=TRUE)
+abcd.data.disc$Flanker<-(abcd.data.disc$Flanker-mean(abcd.data.disc$Flanker,na.rm=TRUE))/sd(abcd.data.disc$Flanker,na.rm=TRUE)
+abcd.data.disc$Picture<-(abcd.data.disc$Picture-mean(abcd.data.disc$Picture,na.rm=TRUE))/sd(abcd.data.disc$Picture,na.rm=TRUE)
+abcd.data.disc$Pattern<-(abcd.data.disc$Pattern-mean(abcd.data.disc$Pattern,na.rm=TRUE))/sd(abcd.data.disc$Pattern,na.rm=TRUE)
+abcd.data.disc$Reading<-(abcd.data.disc$Reading-mean(abcd.data.disc$Reading,na.rm=TRUE))/sd(abcd.data.disc$Reading,na.rm=TRUE)
+abcd.data.disc$interview_age<-(abcd.data.disc$interview_age-mean(abcd.data.disc$interview_age,na.rm=TRUE))/sd(abcd.data.disc$interview_age,na.rm=TRUE)
+
+abcd.data.rep$PicVocab<-(abcd.data.rep$PicVocab-mean(abcd.data.rep$PicVocab,na.rm=TRUE))/sd(abcd.data.rep$PicVocab,na.rm=TRUE)
+abcd.data.rep$Flanker<-(abcd.data.rep$Flanker-mean(abcd.data.rep$Flanker,na.rm=TRUE))/sd(abcd.data.rep$Flanker,na.rm=TRUE)
+abcd.data.rep$Picture<-(abcd.data.rep$Picture-mean(abcd.data.rep$Picture,na.rm=TRUE))/sd(abcd.data.rep$Picture,na.rm=TRUE)
+abcd.data.rep$Pattern<-(abcd.data.rep$Pattern-mean(abcd.data.rep$Pattern,na.rm=TRUE))/sd(abcd.data.rep$Pattern,na.rm=TRUE)
+abcd.data.rep$Reading<-(abcd.data.rep$Reading-mean(abcd.data.rep$Reading,na.rm=TRUE))/sd(abcd.data.rep$Reading,na.rm=TRUE)
+abcd.data.rep$interview_age<-(abcd.data.rep$interview_age-mean(abcd.data.rep$interview_age,na.rm=TRUE))/sd(abcd.data.rep$interview_age,na.rm=TRUE)
+
+
+abcd.data$PicVocab<-(abcd.data$PicVocab-mean(abcd.data$PicVocab,na.rm=TRUE))/sd(abcd.data$PicVocab,na.rm=TRUE)
+abcd.data$Flanker<-(abcd.data$Flanker-mean(abcd.data$Flanker,na.rm=TRUE))/sd(abcd.data$Flanker,na.rm=TRUE)
+abcd.data$Picture<-(abcd.data$Picture-mean(abcd.data$Picture,na.rm=TRUE))/sd(abcd.data$Picture,na.rm=TRUE)
+abcd.data$Pattern<-(abcd.data$Pattern-mean(abcd.data$Pattern,na.rm=TRUE))/sd(abcd.data$Pattern,na.rm=TRUE)
+abcd.data$Reading<-(abcd.data$Reading-mean(abcd.data$Reading,na.rm=TRUE))/sd(abcd.data$Reading,na.rm=TRUE)
+abcd.data$interview_age<-(abcd.data$interview_age-mean(abcd.data$interview_age,na.rm=TRUE))/sd(abcd.data$interview_age,na.rm=TRUE)
+```
+
+
+
+# Linear mixed effects models to relate general adversity to cognition at baseline (TIME 0) in the DISCOVERY dataset
+```{r}
+mod1<-lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.disc)
+
+mod2<-lmer(Flanker~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.disc)
+
+mod3<-lmer(Picture~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.disc)
+
+mod4<-lmer(Pattern~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.disc)
+
+mod5<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.disc)
+
+
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/NIHTBX_ExpBifactor_Disc.doc")
+
+```
+
+
+
+# Linear mixed effects models to relate general adversity to cognition at baseline (TIME 0) in the REPLICATION dataset
+```{r}
+mod6<-lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.rep)
+
+mod7<-lmer(Flanker~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.rep)
+
+mod8<-lmer(Picture~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.rep)
+
+mod9<-lmer(Pattern~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.rep)
+
+mod10<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.rep)
+
+
+tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/NIHTBX_ExpBifactor_Rep.doc")
+
+```
+
+
+# Make scatterplots
+```{r}
+colors=lacroix_palette("Pamplemousse")
+
+png("/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/Figures/ExpFactor_PicVocab_Disc.png",
+    width = 2600, 
+    height = 3100,
+    res=800)
+ggplot(data=abcd.data.disc[abcd.data.disc$PicVocab>-4,],aes(General_SES,PicVocab))+geom_point(position=position_jitter(w = 0.2, h = 0.2),size=0.4,colour=colors[1])+geom_smooth(method=lm,colour='black')+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +ylab('Picture Vocabulary') + xlab('Exp-Factor') +coord_cartesian(xlim = c(-3.25,3.25))
+dev.off() 
+
+png("/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/Figures/ExpFactor_Flanker_Disc.png",
+    width = 2600, 
+    height = 3100,
+    res=800)
+ggplot(data=abcd.data.disc,aes(General_SES,Flanker))+geom_point(position=position_jitter(w = 0.2, h = 0.2),size=0.4,colour=colors[2])+geom_smooth(method=lm,colour='black')+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +ylab('Flanker') + xlab('Exp-Factor') +coord_cartesian(xlim = c(-3.25,3.25))
+dev.off() 
+
+png("/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/Figures/ExpFactor_Picture_Disc.png",
+    width = 2600, 
+    height = 3100,
+    res=800)
+ggplot(data=abcd.data.disc,aes(General_SES,Picture))+geom_point(position=position_jitter(w = 0.2, h = 0.2),size=0.4,colour=colors[3])+geom_smooth(method=lm,colour='black')+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +ylab('Picture Sequence Memory') + xlab('Exp-Factor') +coord_cartesian(xlim = c(-3.25,3.25))
+dev.off() 
+
+png("/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/Figures/ExpFactor_Pattern_Disc.png",
+    width = 2600, 
+    height = 3100,
+    res=800)
+ggplot(data=abcd.data.disc,aes(General_SES,Pattern))+geom_point(position=position_jitter(w = 0.2, h = 0.2),size=0.4,colour=colors[4])+geom_smooth(method=lm,colour='black')+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +ylab('Pattern') + xlab('Exp-Factor') +coord_cartesian(xlim = c(-3.25,3.25))
+dev.off() 
+
+png("/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/Figures/ExpFactor_Reading_Disc.png",
+    width = 2600, 
+    height = 3100,
+    res=800)
+ggplot(data=abcd.data.disc,aes(General_SES,Reading))+geom_point(position=position_jitter(w = 0.2, h = 0.2),size=0.4,colour=colors[5])+geom_smooth(method=lm,colour='black')+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +ylab('Reading') + xlab('Exp-Factor') +coord_cartesian(xlim = c(-3.25,3.25))
+dev.off() 
+
+
+
+png("/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/Figures/ExpFactor_PicVocab_Rep.png",
+    width = 2600, 
+    height = 3100,
+    res=800)
+ggplot(data=abcd.data.rep[abcd.data.rep$PicVocab>-4,],aes(General_SES,PicVocab))+geom_point(position=position_jitter(w = 0.2, h = 0.2),size=0.4,colour=colors[1])+geom_smooth(method=lm,colour='black')+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +ylab('Picture Vocabulary') + xlab('Exp-Factor') +coord_cartesian(xlim = c(-3.25,3.25))
+dev.off() 
+
+png("/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/Figures/ExpFactor_Flanker_Rep.png",
+    width = 2600, 
+    height = 3100,
+    res=800)
+ggplot(data=abcd.data.rep,aes(General_SES,Flanker))+geom_point(position=position_jitter(w = 0.2, h = 0.2),size=0.4,colour=colors[2])+geom_smooth(method=lm,colour='black')+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +ylab('Flanker') + xlab('Exp-Factor') +coord_cartesian(xlim = c(-3.25,3.25))
+dev.off() 
+
+png("/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/Figures/ExpFactor_Picture_Rep.png",
+    width = 2600, 
+    height = 3100,
+    res=800)
+ggplot(data=abcd.data.rep,aes(General_SES,Picture))+geom_point(position=position_jitter(w = 0.2, h = 0.2),size=0.4,colour=colors[3])+geom_smooth(method=lm,colour='black')+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +ylab('Picture Sequence Memory') + xlab('Exp-Factor') +coord_cartesian(xlim = c(-3.25,3.25))
+dev.off() 
+
+png("/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/Figures/ExpFactor_Pattern_Rep.png",
+    width = 2600, 
+    height = 3100,
+    res=800)
+ggplot(data=abcd.data.rep,aes(General_SES,Pattern))+geom_point(position=position_jitter(w = 0.2, h = 0.2),size=0.4,colour=colors[4])+geom_smooth(method=lm,colour='black')+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +ylab('Pattern') + xlab('Exp-Factor') +coord_cartesian(xlim = c(-3.25,3.25))
+dev.off() 
+
+png("/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/Figures/ExpFactor_Reading_Rep.png",
+    width = 2600, 
+    height = 3100,
+    res=800)
+ggplot(data=abcd.data.rep,aes(General_SES,Reading))+geom_point(position=position_jitter(w = 0.2, h = 0.2),size=0.4,colour=colors[5])+geom_smooth(method=lm,colour='black')+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +ylab('Reading') + xlab('Exp-Factor') +coord_cartesian(xlim = c(-3.25,3.25))
+dev.off() 
+```
+
+
+
+
+# Next, relate exposome factors to PFN topography at Time 0
+```{r}
+# First load in the spatial extent of each PFN (they're in order, 1-17)
+pfn_sizes <- read.csv("/Users/askeller/Documents/Kellernet_PrelimAnalysis/All_PFN_sizes.csv") 
+
+# Change PFN column names so they're sensible
+colnames(pfn_sizes)<-c("subjectkey","PFN1","PFN2","PFN3","PFN4","PFN5","PFN6","PFN7","PFN8","PFN9","PFN10","PFN11","PFN12","PFN13","PFN14","PFN15","PFN16","PFN17")
+pfn_sizes$subjectkey<-gsub('sub-NDARINV','NDAR_INV',pfn_sizes$subjectkey)
+
+
+# Remove subjects based on the following head motion criteria:
+## 1) 8min of retained TRs (600 TRs)
+## 2) ABCD Booleans for rest and T1
+num_TRs <- read.csv("/Users/askeller/Documents/Kellernet_PrelimAnalysis/num_TRs_by_subj_redo.csv")
+pfn_sizes_TRs<-merge(pfn_sizes,num_TRs,by="subjectkey")
+pfn_sizes_cleanTRs<-pfn_sizes_TRs[pfn_sizes_TRs$numTRs>=600,]
+
+# Remove participants based on quality control from ABCD
+abcd_imgincl01 <- read.csv("/Users/askeller/Documents/Kellernet_PrelimAnalysis/abcd_imgincl01.csv")
+abcd_imgincl01 <- abcd_imgincl01[abcd_imgincl01$eventnam=="baseline_year_1_arm_1",]
+abcd_imgincl01 <- abcd_imgincl01[!abcd_imgincl01$visit=="",] 
+abcd_imgincl01 <- abcd_imgincl01[abcd_imgincl01$imgincl_t1w_include==1,]
+abcd_imgincl01 <- abcd_imgincl01[abcd_imgincl01$imgincl_rsfmri_include==1,] 
+pfn_sizes_cleanTRs_passQC <- merge(pfn_sizes_cleanTRs,abcd_imgincl01[, c("subjectkey",'imgincl_t1w_include')],by="subjectkey") 
+
+
+# Add mean FD (fractional displacement is a measurement of head motion)
+meanFD <- read.csv("/Users/askeller/Documents/Kellernet_PrelimAnalysis/PFN_Gradients_CombinedScript/getFD/meanFD_031822.csv")
+colnames(meanFD)<-c("subjectkey","meanFD")
+meanFD$subjectkey <- gsub(pattern="sub-NDAR",replacement="NDAR_", meanFD$subjectkey)
+pfn_sizes_cleanTRs_passQC_meanFD <- merge(pfn_sizes_cleanTRs_passQC,meanFD,by="subjectkey")
+
+
+# Combine dataframes
+abcd.data.pfns <- merge(abcd.data,pfn_sizes_cleanTRs_passQC_meanFD[,c("subjectkey",setdiff(colnames(pfn_sizes_cleanTRs_passQC_meanFD),colnames(abcd.data)))],by="subjectkey")
+abcd.data.disc.pfns <- merge(abcd.data.disc,pfn_sizes_cleanTRs_passQC_meanFD[,c("subjectkey",setdiff(colnames(pfn_sizes_cleanTRs_passQC_meanFD),colnames(abcd.data.disc)))],by="subjectkey")
+abcd.data.rep.pfns <- merge(abcd.data.rep,pfn_sizes_cleanTRs_passQC_meanFD[,c("subjectkey",setdiff(colnames(pfn_sizes_cleanTRs_passQC_meanFD),colnames(abcd.data.rep)))],by="subjectkey")
+
+## n=6,686 with Discovery n=3,361 and Replication n=3,361
+
+# Z-score separately in discovery and replication samples
+abcd.data.disc.pfns$PFN1<-(abcd.data.disc.pfns$PFN1-mean(abcd.data.disc.pfns$PFN1,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN1,na.rm=TRUE)
+abcd.data.disc.pfns$PFN2<-(abcd.data.disc.pfns$PFN2-mean(abcd.data.disc.pfns$PFN2,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN2,na.rm=TRUE)
+abcd.data.disc.pfns$PFN3<-(abcd.data.disc.pfns$PFN3-mean(abcd.data.disc.pfns$PFN3,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN3,na.rm=TRUE)
+abcd.data.disc.pfns$PFN4<-(abcd.data.disc.pfns$PFN4-mean(abcd.data.disc.pfns$PFN4,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN4,na.rm=TRUE)
+abcd.data.disc.pfns$PFN5<-(abcd.data.disc.pfns$PFN5-mean(abcd.data.disc.pfns$PFN5,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN5,na.rm=TRUE)
+abcd.data.disc.pfns$PFN6<-(abcd.data.disc.pfns$PFN6-mean(abcd.data.disc.pfns$PFN6,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN6,na.rm=TRUE)
+abcd.data.disc.pfns$PFN7<-(abcd.data.disc.pfns$PFN7-mean(abcd.data.disc.pfns$PFN7,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN7,na.rm=TRUE)
+abcd.data.disc.pfns$PFN8<-(abcd.data.disc.pfns$PFN8-mean(abcd.data.disc.pfns$PFN8,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN8,na.rm=TRUE)
+abcd.data.disc.pfns$PFN9<-(abcd.data.disc.pfns$PFN9-mean(abcd.data.disc.pfns$PFN9,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN9,na.rm=TRUE)
+abcd.data.disc.pfns$PFN10<-(abcd.data.disc.pfns$PFN10-mean(abcd.data.disc.pfns$PFN10,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN10,na.rm=TRUE)
+abcd.data.disc.pfns$PFN11<-(abcd.data.disc.pfns$PFN11-mean(abcd.data.disc.pfns$PFN11,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN11,na.rm=TRUE)
+abcd.data.disc.pfns$PFN12<-(abcd.data.disc.pfns$PFN12-mean(abcd.data.disc.pfns$PFN12,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN12,na.rm=TRUE)
+abcd.data.disc.pfns$PFN13<-(abcd.data.disc.pfns$PFN13-mean(abcd.data.disc.pfns$PFN13,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN13,na.rm=TRUE)
+abcd.data.disc.pfns$PFN14<-(abcd.data.disc.pfns$PFN14-mean(abcd.data.disc.pfns$PFN14,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN14,na.rm=TRUE)
+abcd.data.disc.pfns$PFN15<-(abcd.data.disc.pfns$PFN15-mean(abcd.data.disc.pfns$PFN15,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN15,na.rm=TRUE)
+abcd.data.disc.pfns$PFN16<-(abcd.data.disc.pfns$PFN16-mean(abcd.data.disc.pfns$PFN16,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN16,na.rm=TRUE)
+abcd.data.disc.pfns$PFN17<-(abcd.data.disc.pfns$PFN17-mean(abcd.data.disc.pfns$PFN17,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN17,na.rm=TRUE)
+
+abcd.data.rep.pfns$PFN1<-(abcd.data.rep.pfns$PFN1-mean(abcd.data.rep.pfns$PFN1,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN1,na.rm=TRUE)
+abcd.data.rep.pfns$PFN2<-(abcd.data.rep.pfns$PFN2-mean(abcd.data.rep.pfns$PFN2,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN2,na.rm=TRUE)
+abcd.data.rep.pfns$PFN3<-(abcd.data.rep.pfns$PFN3-mean(abcd.data.rep.pfns$PFN3,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN3,na.rm=TRUE)
+abcd.data.rep.pfns$PFN4<-(abcd.data.rep.pfns$PFN4-mean(abcd.data.rep.pfns$PFN4,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN4,na.rm=TRUE)
+abcd.data.rep.pfns$PFN5<-(abcd.data.rep.pfns$PFN5-mean(abcd.data.rep.pfns$PFN5,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN5,na.rm=TRUE)
+abcd.data.rep.pfns$PFN6<-(abcd.data.rep.pfns$PFN6-mean(abcd.data.rep.pfns$PFN6,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN6,na.rm=TRUE)
+abcd.data.rep.pfns$PFN7<-(abcd.data.rep.pfns$PFN7-mean(abcd.data.rep.pfns$PFN7,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN7,na.rm=TRUE)
+abcd.data.rep.pfns$PFN8<-(abcd.data.rep.pfns$PFN8-mean(abcd.data.rep.pfns$PFN8,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN8,na.rm=TRUE)
+abcd.data.rep.pfns$PFN9<-(abcd.data.rep.pfns$PFN9-mean(abcd.data.rep.pfns$PFN9,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN9,na.rm=TRUE)
+abcd.data.rep.pfns$PFN10<-(abcd.data.rep.pfns$PFN10-mean(abcd.data.rep.pfns$PFN10,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN10,na.rm=TRUE)
+abcd.data.rep.pfns$PFN11<-(abcd.data.rep.pfns$PFN11-mean(abcd.data.rep.pfns$PFN11,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN11,na.rm=TRUE)
+abcd.data.rep.pfns$PFN12<-(abcd.data.rep.pfns$PFN12-mean(abcd.data.rep.pfns$PFN12,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN12,na.rm=TRUE)
+abcd.data.rep.pfns$PFN13<-(abcd.data.rep.pfns$PFN13-mean(abcd.data.rep.pfns$PFN13,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN13,na.rm=TRUE)
+abcd.data.rep.pfns$PFN14<-(abcd.data.rep.pfns$PFN14-mean(abcd.data.rep.pfns$PFN14,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN14,na.rm=TRUE)
+abcd.data.rep.pfns$PFN15<-(abcd.data.rep.pfns$PFN15-mean(abcd.data.rep.pfns$PFN15,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN15,na.rm=TRUE)
+abcd.data.rep.pfns$PFN16<-(abcd.data.rep.pfns$PFN16-mean(abcd.data.rep.pfns$PFN16,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN16,na.rm=TRUE)
+abcd.data.rep.pfns$PFN17<-(abcd.data.rep.pfns$PFN17-mean(abcd.data.rep.pfns$PFN17,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN17,na.rm=TRUE)
+
+
+abcd.data.pfns$PFN1<-(abcd.data.pfns$PFN1-mean(abcd.data.pfns$PFN1,na.rm=TRUE))/sd(abcd.data.pfns$PFN1,na.rm=TRUE)
+abcd.data.pfns$PFN2<-(abcd.data.pfns$PFN2-mean(abcd.data.pfns$PFN2,na.rm=TRUE))/sd(abcd.data.pfns$PFN2,na.rm=TRUE)
+abcd.data.pfns$PFN3<-(abcd.data.pfns$PFN3-mean(abcd.data.pfns$PFN3,na.rm=TRUE))/sd(abcd.data.pfns$PFN3,na.rm=TRUE)
+abcd.data.pfns$PFN4<-(abcd.data.pfns$PFN4-mean(abcd.data.pfns$PFN4,na.rm=TRUE))/sd(abcd.data.pfns$PFN4,na.rm=TRUE)
+abcd.data.pfns$PFN5<-(abcd.data.pfns$PFN5-mean(abcd.data.pfns$PFN5,na.rm=TRUE))/sd(abcd.data.pfns$PFN5,na.rm=TRUE)
+abcd.data.pfns$PFN6<-(abcd.data.pfns$PFN6-mean(abcd.data.pfns$PFN6,na.rm=TRUE))/sd(abcd.data.pfns$PFN6,na.rm=TRUE)
+abcd.data.pfns$PFN7<-(abcd.data.pfns$PFN7-mean(abcd.data.pfns$PFN7,na.rm=TRUE))/sd(abcd.data.pfns$PFN7,na.rm=TRUE)
+abcd.data.pfns$PFN8<-(abcd.data.pfns$PFN8-mean(abcd.data.pfns$PFN8,na.rm=TRUE))/sd(abcd.data.pfns$PFN8,na.rm=TRUE)
+abcd.data.pfns$PFN9<-(abcd.data.pfns$PFN9-mean(abcd.data.pfns$PFN9,na.rm=TRUE))/sd(abcd.data.pfns$PFN9,na.rm=TRUE)
+abcd.data.pfns$PFN10<-(abcd.data.pfns$PFN10-mean(abcd.data.pfns$PFN10,na.rm=TRUE))/sd(abcd.data.pfns$PFN10,na.rm=TRUE)
+abcd.data.pfns$PFN11<-(abcd.data.pfns$PFN11-mean(abcd.data.pfns$PFN11,na.rm=TRUE))/sd(abcd.data.pfns$PFN11,na.rm=TRUE)
+abcd.data.pfns$PFN12<-(abcd.data.pfns$PFN12-mean(abcd.data.pfns$PFN12,na.rm=TRUE))/sd(abcd.data.pfns$PFN12,na.rm=TRUE)
+abcd.data.pfns$PFN13<-(abcd.data.pfns$PFN13-mean(abcd.data.pfns$PFN13,na.rm=TRUE))/sd(abcd.data.pfns$PFN13,na.rm=TRUE)
+abcd.data.pfns$PFN14<-(abcd.data.pfns$PFN14-mean(abcd.data.pfns$PFN14,na.rm=TRUE))/sd(abcd.data.pfns$PFN14,na.rm=TRUE)
+abcd.data.pfns$PFN15<-(abcd.data.pfns$PFN15-mean(abcd.data.pfns$PFN15,na.rm=TRUE))/sd(abcd.data.pfns$PFN15,na.rm=TRUE)
+abcd.data.pfns$PFN16<-(abcd.data.pfns$PFN16-mean(abcd.data.pfns$PFN16,na.rm=TRUE))/sd(abcd.data.pfns$PFN16,na.rm=TRUE)
+abcd.data.pfns$PFN17<-(abcd.data.pfns$PFN17-mean(abcd.data.pfns$PFN17,na.rm=TRUE))/sd(abcd.data.pfns$PFN17,na.rm=TRUE)
+
+
+
+# Linear mixed effects mdoels to relate PFN topography to Exp-Factor
+mod11<-lmer(General_SES~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+PFN1+PFN2+PFN3+PFN4+PFN5+PFN6+PFN7+PFN8+PFN9+PFN10+PFN11+PFN12+PFN13+PFN14+PFN15+PFN16+PFN17,data=abcd.data.disc.pfns)
+mod12<-lmer(General_SES~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+PFN1+PFN2+PFN3+PFN4+PFN5+PFN6+PFN7+PFN8+PFN9+PFN10+PFN11+PFN12+PFN13+PFN14+PFN15+PFN16+PFN17,data=abcd.data.rep.pfns)
+
+tab_model(mod11,mod12,pred.labels = c("Intercept","Age","Sex","Motion","PFN1","PFN2","PFN3","PFN4","PFN5","PFN6","PFN7","PFN8","PFN9","PFN10","PFN11","PFN12","PFN13","PFN14","PFN15","PFN16","PFN17"),dv.labels=c("General SES (Disc)","General SES (Rep)"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/PFNs_ExpBifactor_DiscRep.doc")
+
+
+# Specifically test associations with the total cortical rep of the three fronto-parietal networks (3, 15, 17)
+abcd.data.disc.pfns$FPN <- rowSums(data.frame(abcd.data.disc.pfns$PFN3,abcd.data.disc.pfns$PFN15,abcd.data.disc.pfns$PFN17))
+abcd.data.rep.pfns$FPN <- rowSums(data.frame(abcd.data.rep.pfns$PFN3,abcd.data.rep.pfns$PFN15,abcd.data.rep.pfns$PFN17))
+
+# Z-score this new variable
+abcd.data.disc.pfns$FPN<-(abcd.data.disc.pfns$FPN-mean(abcd.data.disc.pfns$FPN,na.rm=TRUE))/sd(abcd.data.disc.pfns$FPN,na.rm=TRUE)
+abcd.data.rep.pfns$FPN<-(abcd.data.rep.pfns$FPN-mean(abcd.data.rep.pfns$FPN,na.rm=TRUE))/sd(abcd.data.rep.pfns$FPN,na.rm=TRUE)
+
+mod13<-lmer(FPN~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+General_SES,data=abcd.data.disc.pfns)
+mod14<-lmer(FPN~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+General_SES,data=abcd.data.rep.pfns)
+
+mod21<-lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN,data=abcd.data.disc.pfns)
+mod31<-lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN,data=abcd.data.rep.pfns)
+mod22<-lmer(Flanker~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN,data=abcd.data.disc.pfns)
+mod32<-lmer(Flanker~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN,data=abcd.data.rep.pfns)
+mod23<-lmer(Picture~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN,data=abcd.data.disc.pfns)
+mod33<-lmer(Picture~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN,data=abcd.data.rep.pfns)
+mod24<-lmer(Pattern~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN,data=abcd.data.disc.pfns)
+mod34<-lmer(Pattern~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN,data=abcd.data.rep.pfns)
+mod25<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN,data=abcd.data.disc.pfns)
+mod35<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN,data=abcd.data.rep.pfns)
+
+
+tab_model(mod13,mod14,pred.labels = c("Intercept","Age","Sex","Motion","General SES"),dv.labels=c("FPN (Disc)","FPN (Rep)"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/FPN_ExpBifactor_DiscRep.doc")
+
+tab_model(mod21,mod22,mod23,mod24,mod25,pred.labels = c("Intercept","Age","Sex","Motion","FPN"),dv.labels=c("PicVocab","Flanker","Picture","Pattern","Reading"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/FPN_Cognition_Disc.doc")
+
+tab_model(mod31,mod32,mod33,mod34,mod35,pred.labels = c("Intercept","Age","Sex","Motion","FPN"),dv.labels=c("PicVocab","Flanker","Picture","Pattern","Reading"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/FPN_Cognition_Rep.doc")
+
+
+# MEDIATION TEST:
+summary(lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+General_SES,data=abcd.data.disc.pfns))
+summary(lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN+General_SES,data=abcd.data.disc.pfns))
+
+bs_indir = c()
+for (i in 1:1000){
+  thisSample <- sample(c(1:length(abcd.data.disc.pfns$subjectkey)),length(abcd.data.disc.pfns$subjectkey),replace=TRUE)
+  pathc<-lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+General_SES,data=abcd.data.disc.pfns[thisSample,])
+  pathcp<-lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN+General_SES,data=abcd.data.disc.pfns[thisSample,])
+  indir<-fixef(pathc)[5]-fixef(pathcp)[6]
+  bs_indir <- c(bs_indir,indir)
+}
+t.test(bs_indir,conf.level=0.95)
+#t = 21.753, df = 999, p-value < 2.2e-16
+# alternative hypothesis: true mean is not equal to 0
+# 95 percent confidence interval:
+#  0.001433320 0.001717562
+# sample estimates:
+#   mean of x 
+# 0.001575441
+
+summary(lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+General_SES,data=abcd.data.disc.pfns))
+summary(lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN+General_SES,data=abcd.data.disc.pfns))
+
+bs_indir = c()
+for (i in 1:1000){
+  thisSample <- sample(c(1:length(abcd.data.disc.pfns$subjectkey)),length(abcd.data.disc.pfns$subjectkey),replace=TRUE)
+  pathc<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+General_SES,data=abcd.data.disc.pfns[thisSample,])
+  pathcp<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN+General_SES,data=abcd.data.disc.pfns[thisSample,])
+  indir<-fixef(pathc)[5]-fixef(pathcp)[6]
+  bs_indir <- c(bs_indir,indir)
+}
+t.test(bs_indir,conf.level=0.95)
+# t = -14.107, df = 999, p-value < 2.2e-16
+# alternative hypothesis: true mean is not equal to 0
+# 95 percent confidence interval:
+#  -0.0012803072 -0.0009676044
+# sample estimates:
+#    mean of x 
+# -0.001123956 
+
+
+summary(lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+General_SES,data=abcd.data.rep.pfns))
+summary(lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN+General_SES,data=abcd.data.rep.pfns))
+
+bs_indir = c()
+for (i in 1:1000){
+  thisSample <- sample(c(1:length(abcd.data.rep.pfns$subjectkey)),length(abcd.data.rep.pfns$subjectkey),replace=TRUE)
+  pathc<-lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+General_SES,data=abcd.data.rep.pfns[thisSample,])
+  pathcp<-lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN+General_SES,data=abcd.data.rep.pfns[thisSample,])
+  indir<-fixef(pathc)[5]-fixef(pathcp)[6]
+  bs_indir <- c(bs_indir,indir)
+}
+t.test(bs_indir,conf.level=0.95)
+# t = 28.553, df = 999, p-value < 2.2e-16
+# alternative hypothesis: true mean is not equal to 0
+# 95 percent confidence interval:
+#  0.001932957 0.002218251
+# sample estimates:
+#   mean of x 
+# 0.002075604 
+
+
+summary(lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+General_SES,data=abcd.data.rep.pfns))
+summary(lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN+General_SES,data=abcd.data.rep.pfns))
+
+bs_indir = c()
+for (i in 1:1000){
+  thisSample <- sample(c(1:length(abcd.data.rep.pfns$subjectkey)),length(abcd.data.rep.pfns$subjectkey),replace=TRUE)
+  pathc<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+General_SES,data=abcd.data.rep.pfns[thisSample,])
+  pathcp<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN+General_SES,data=abcd.data.rep.pfns[thisSample,])
+  indir<-fixef(pathc)[5]-fixef(pathcp)[6]
+  bs_indir <- c(bs_indir,indir)
+}
+t.test(bs_indir,conf.level=0.95)
+# t = 55.629, df = 999, p-value < 2.2e-16
+# alternative hypothesis: true mean is not equal to 0
+# 95 percent confidence interval:
+#  0.004739170 0.005085749
+# sample estimates:
+#   mean of x 
+# 0.004912459
+
+
+# Make some plots:
+png("/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/Figures/ExpFactor_FPN_Disc.png",
+    width = 2400, 
+    height = 3100,
+    res=800)
+ggplot(data=abcd.data.disc.pfns,aes(General_SES,FPN))+geom_point(size=0.4,colour='goldenrod2')+geom_smooth(method=lm,colour='black')+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +ylab('FPN Topography') + xlab('Exp-Factor') +coord_cartesian(xlim = c(-3.25,3.25))
+dev.off() 
+
+png("/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/Figures/ExpFactor_FPN_Rep.png",
+    width = 2400, 
+    height = 3100,
+    res=800)
+ggplot(data=abcd.data.rep.pfns,aes(General_SES,FPN))+geom_point(size=0.4,colour='goldenrod2')+geom_smooth(method=lm,colour='black')+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +ylab('FPN Topography') + xlab('Exp-Factor') +coord_cartesian(xlim = c(-3.25,3.25))
+dev.off() 
+```
+
+
+
+# For the next set of analyses, we will need to get the participants who have complete data for T0 and T2:
+```{r}
+step1 <- merge(nihtb_T2,bifactor_scores_T2[,c("subjectkey",setdiff(colnames(bifactor_scores_T2),colnames(nihtb_T2)))],by="subjectkey")
+step2 <- merge(step1,abcd.data[,c("subjectkey",setdiff(colnames(abcd.data),colnames(step1)))],by="subjectkey")
+
+abcd.data.T0T2 <- step2[complete.cases(step2),]
+abcd.data.disc.T0T2 <- abcd.data.T0T2[abcd.data.T0T2$matched_group==1,]
+abcd.data.rep.T0T2 <- abcd.data.T0T2[abcd.data.T0T2$matched_group==2,]
+
+abcd.data.disc.T0T2$PicVocab_T2<-(abcd.data.disc.T0T2$PicVocab_T2-mean(abcd.data.disc.T0T2$PicVocab_T2,na.rm=TRUE))/sd(abcd.data.disc.T0T2$PicVocab_T2,na.rm=TRUE)
+abcd.data.disc.T0T2$Flanker_T2<-(abcd.data.disc.T0T2$Flanker_T2-mean(abcd.data.disc.T0T2$Flanker_T2,na.rm=TRUE))/sd(abcd.data.disc.T0T2$Flanker_T2,na.rm=TRUE)
+abcd.data.disc.T0T2$Picture_T2<-(abcd.data.disc.T0T2$Picture_T2-mean(abcd.data.disc.T0T2$Picture_T2,na.rm=TRUE))/sd(abcd.data.disc.T0T2$Picture_T2,na.rm=TRUE)
+abcd.data.disc.T0T2$Pattern_T2<-(abcd.data.disc.T0T2$Pattern_T2-mean(abcd.data.disc.T0T2$Pattern_T2,na.rm=TRUE))/sd(abcd.data.disc.T0T2$Pattern_T2,na.rm=TRUE)
+abcd.data.disc.T0T2$Reading_T2<-(abcd.data.disc.T0T2$Reading_T2-mean(abcd.data.disc.T0T2$Reading_T2,na.rm=TRUE))/sd(abcd.data.disc.T0T2$Reading_T2,na.rm=TRUE)
+
+
+abcd.data.rep.T0T2$PicVocab_T2<-(abcd.data.rep.T0T2$PicVocab_T2-mean(abcd.data.rep.T0T2$PicVocab_T2,na.rm=TRUE))/sd(abcd.data.rep.T0T2$PicVocab_T2,na.rm=TRUE)
+abcd.data.rep.T0T2$Flanker_T2<-(abcd.data.rep.T0T2$Flanker_T2-mean(abcd.data.rep.T0T2$Flanker_T2,na.rm=TRUE))/sd(abcd.data.rep.T0T2$Flanker_T2,na.rm=TRUE)
+abcd.data.rep.T0T2$Picture_T2<-(abcd.data.rep.T0T2$Picture_T2-mean(abcd.data.rep.T0T2$Picture_T2,na.rm=TRUE))/sd(abcd.data.rep.T0T2$Picture_T2,na.rm=TRUE)
+abcd.data.rep.T0T2$Pattern_T2<-(abcd.data.rep.T0T2$Pattern_T2-mean(abcd.data.rep.T0T2$Pattern_T2,na.rm=TRUE))/sd(abcd.data.rep.T0T2$Pattern_T2,na.rm=TRUE)
+abcd.data.rep.T0T2$Reading_T2<-(abcd.data.rep.T0T2$Reading_T2-mean(abcd.data.rep.T0T2$Reading_T2,na.rm=TRUE))/sd(abcd.data.rep.T0T2$Reading_T2,na.rm=TRUE)
+
+abcd.data.T0T2$PicVocab_T2<-(abcd.data.T0T2$PicVocab_T2-mean(abcd.data.T0T2$PicVocab_T2,na.rm=TRUE))/sd(abcd.data.T0T2$PicVocab_T2,na.rm=TRUE)
+abcd.data.T0T2$Flanker_T2<-(abcd.data.T0T2$Flanker_T2-mean(abcd.data.T0T2$Flanker_T2,na.rm=TRUE))/sd(abcd.data.T0T2$Flanker_T2,na.rm=TRUE)
+abcd.data.T0T2$Picture_T2<-(abcd.data.T0T2$Picture_T2-mean(abcd.data.T0T2$Picture_T2,na.rm=TRUE))/sd(abcd.data.T0T2$Picture_T2,na.rm=TRUE)
+abcd.data.T0T2$Pattern_T2<-(abcd.data.T0T2$Pattern_T2-mean(abcd.data.T0T2$Pattern_T2,na.rm=TRUE))/sd(abcd.data.T0T2$Pattern_T2,na.rm=TRUE)
+abcd.data.T0T2$Reading_T2<-(abcd.data.T0T2$Reading_T2-mean(abcd.data.T0T2$Reading_T2,na.rm=TRUE))/sd(abcd.data.T0T2$Reading_T2,na.rm=TRUE)
+```
+
+
+# Next, relate exposome factors to cognition at Time 2 while controlling for Time 0
+```{r}
+mod1<-lmer(PicVocab_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+PicVocab,data=abcd.data.disc.T0T2)
+mod2<-lmer(Flanker_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+Flanker,data=abcd.data.disc.T0T2)
+mod3<-lmer(Picture_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+Picture,data=abcd.data.disc.T0T2)
+mod4<-lmer(Pattern_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+Pattern,data=abcd.data.disc.T0T2)
+mod5<-lmer(Reading_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+Reading,data=abcd.data.disc.T0T2)
+
+mod6<-lmer(PicVocab_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+PicVocab,data=abcd.data.rep.T0T2)
+mod7<-lmer(Flanker_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+Flanker,data=abcd.data.rep.T0T2)
+mod8<-lmer(Picture_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+Picture,data=abcd.data.rep.T0T2)
+mod9<-lmer(Pattern_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+Pattern,data=abcd.data.rep.T0T2)
+mod10<-lmer(Reading_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+Reading,data=abcd.data.rep.T0T2)
+
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","General SES","Baseline PicVocab","Baseline Flanker","Baseline Picture","Baseline Pattern","Baseline Reading"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/T2NIHTBX_GeneralSES_Disc.doc")
+
+tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","General SES","Baseline PicVocab","Baseline Flanker","Baseline Picture","Baseline Pattern","Baseline Reading"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/T2NIHTBX_GeneralSES_Rep.doc")
+
+
+```
+
+
+
+# Next, relate exposome factors to cognition at Time 2 while controlling for Time 0 but with all exposome factors
+```{r}
+mod1<-lmer(PicVocab_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time+PicVocab,data=abcd.data.disc.T0T2)
+mod2<-lmer(Flanker_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time+Flanker,data=abcd.data.disc.T0T2)
+mod3<-lmer(Picture_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time+Picture,data=abcd.data.disc.T0T2)
+mod4<-lmer(Pattern_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time+Pattern,data=abcd.data.disc.T0T2)
+mod5<-lmer(Reading_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time+Reading,data=abcd.data.disc.T0T2)
+
+mod6<-lmer(PicVocab_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time+PicVocab,data=abcd.data.rep.T0T2)
+mod7<-lmer(Flanker_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time+Flanker,data=abcd.data.rep.T0T2)
+mod8<-lmer(Picture_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time+Picture,data=abcd.data.rep.T0T2)
+mod9<-lmer(Pattern_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time+Pattern,data=abcd.data.rep.T0T2)
+mod10<-lmer(Reading_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time+Reading,data=abcd.data.rep.T0T2)
+
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time","Baseline PicVocab","Baseline Flanker","Baseline Picture","Baseline Pattern","Baseline Reading"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/T2NIHTBX_ExpBifactors_Disc.doc")
+
+tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time","Baseline PicVocab","Baseline Flanker","Baseline Picture","Baseline Pattern","Baseline Reading"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/T2NIHTBX_ExpBifactors_Rep.doc")
+
+
+```
+
+
+# Next, relate the change in exposome factors from T0 to T2 to the change in cognition from T0 to T2
+```{r}
+# calculate change in General SES and cognitive scores
+abcd.data.disc.T0T2$deltaGeneral_SES <- abcd.data.disc.T0T2$General_SES_T2-abcd.data.disc.T0T2$General_SES
+abcd.data.rep.T0T2$deltaGeneral_SES <- abcd.data.rep.T0T2$General_SES_T2-abcd.data.rep.T0T2$General_SES
+abcd.data.T0T2$deltaGeneral_SES <- abcd.data.T0T2$General_SES_T2-abcd.data.T0T2$General_SES
+
+abcd.data.disc.T0T2$deltaPicVocab <- abcd.data.disc.T0T2$PicVocab_T2-abcd.data.disc.T0T2$PicVocab
+abcd.data.rep.T0T2$deltaPicVocab <- abcd.data.rep.T0T2$PicVocab_T2-abcd.data.rep.T0T2$PicVocab
+abcd.data.T0T2$deltaPicVocab <- abcd.data.T0T2$PicVocab_T2-abcd.data.T0T2$PicVocab
+
+abcd.data.disc.T0T2$deltaFlanker <- abcd.data.disc.T0T2$Flanker_T2-abcd.data.disc.T0T2$Flanker
+abcd.data.rep.T0T2$deltaFlanker <- abcd.data.rep.T0T2$Flanker_T2-abcd.data.rep.T0T2$Flanker
+abcd.data.T0T2$deltaFlanker <- abcd.data.T0T2$Flanker_T2-abcd.data.T0T2$Flanker
+
+abcd.data.disc.T0T2$deltaPicture <- abcd.data.disc.T0T2$Picture_T2-abcd.data.disc.T0T2$Picture
+abcd.data.rep.T0T2$deltaPicture <- abcd.data.rep.T0T2$Picture_T2-abcd.data.rep.T0T2$Picture
+abcd.data.T0T2$deltaPicture <- abcd.data.T0T2$Picture_T2-abcd.data.T0T2$Picture
+
+abcd.data.disc.T0T2$deltaPattern <- abcd.data.disc.T0T2$Pattern_T2-abcd.data.disc.T0T2$Pattern
+abcd.data.rep.T0T2$deltaPattern <- abcd.data.rep.T0T2$Pattern_T2-abcd.data.rep.T0T2$Pattern
+abcd.data.T0T2$deltaPattern <- abcd.data.T0T2$Pattern_T2-abcd.data.T0T2$Pattern
+
+abcd.data.disc.T0T2$deltaReading <- abcd.data.disc.T0T2$Reading_T2-abcd.data.disc.T0T2$Reading
+abcd.data.rep.T0T2$deltaReading <- abcd.data.rep.T0T2$Reading_T2-abcd.data.rep.T0T2$Reading
+abcd.data.T0T2$deltaReading <- abcd.data.T0T2$Reading_T2-abcd.data.T0T2$Reading
+
+
+
+
+mod1<-lmer(deltaPicVocab~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+PicVocab+deltaGeneral_SES,data=abcd.data.disc.T0T2)
+mod2<-lmer(deltaFlanker~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Flanker+deltaGeneral_SES,data=abcd.data.disc.T0T2)
+mod3<-lmer(deltaPicture~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Picture+deltaGeneral_SES,data=abcd.data.disc.T0T2)
+mod4<-lmer(deltaPattern~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Pattern+deltaGeneral_SES,data=abcd.data.disc.T0T2)
+mod5<-lmer(deltaReading~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Reading+deltaGeneral_SES,data=abcd.data.disc.T0T2)
+mod6<-lmer(deltaPicVocab~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+PicVocab+deltaGeneral_SES,data=abcd.data.rep.T0T2)
+mod7<-lmer(deltaFlanker~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Flanker+deltaGeneral_SES,data=abcd.data.rep.T0T2)
+mod8<-lmer(deltaPicture~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Picture+deltaGeneral_SES,data=abcd.data.rep.T0T2)
+mod9<-lmer(deltaPattern~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Pattern+deltaGeneral_SES,data=abcd.data.rep.T0T2)
+mod10<-lmer(deltaReading~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Reading+deltaGeneral_SES,data=abcd.data.rep.T0T2)
+mod11<-lmer(deltaPicVocab~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+PicVocab+deltaGeneral_SES,data=abcd.data.T0T2)
+mod12<-lmer(deltaFlanker~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Flanker+deltaGeneral_SES,data=abcd.data.T0T2)
+mod13<-lmer(deltaPicture~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Picture+deltaGeneral_SES,data=abcd.data.T0T2)
+mod14<-lmer(deltaPattern~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Pattern+deltaGeneral_SES,data=abcd.data.T0T2)
+mod15<-lmer(deltaReading~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Reading+deltaGeneral_SES,data=abcd.data.T0T2)
+
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/deltaNIHTBX_deltaExpBifactor_Disc.doc")
+
+tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/deltaNIHTBX_deltaExpBifactor_Rep.doc")
+
+tab_model(mod11,mod12,mod13,mod14,mod15,pred.labels = c("Intercept","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/deltaNIHTBX_deltaExpBifactor_FullSample.doc")
+
+```
+
+
+# get percentage females in both samples
+```{r}
+sum(abcd.data.disc$sex_at_birth=="F")/dim(abcd.data.disc)[1]
+sum(abcd.data.rep$sex_at_birth=="F")/dim(abcd.data.rep)[1]
+```
+
+
+
+
+# Check screen time finding without peer deviance:
+```{r}
+individual_scores<-read.csv("/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/arielle_individual_exposome_with_scores.csv")
+screen_time <- individual_scores[individual_scores$eventname=="baseline_year_1_arm_1",c("src_subject_id","screen_time")]
+colnames(screen_time)[1]<-"subjectkey"
+abcd.data.disc.st <- merge(abcd.data.disc,screen_time,by="subjectkey")
+abcd.data.rep.st <- merge(abcd.data.rep,screen_time,by="subjectkey")
+
+
+mod1<-lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+screen_time,data=abcd.data.disc.st)
+mod2<-lmer(Flanker~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+screen_time,data=abcd.data.disc.st)
+mod3<-lmer(Picture~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+screen_time,data=abcd.data.disc.st)
+mod4<-lmer(Pattern~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+screen_time,data=abcd.data.disc.st)
+mod5<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+screen_time,data=abcd.data.disc.st)
+mod6<-lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+screen_time,data=abcd.data.rep.st)
+mod7<-lmer(Flanker~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+screen_time,data=abcd.data.rep.st)
+mod8<-lmer(Picture~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+screen_time,data=abcd.data.rep.st)
+mod9<-lmer(Pattern~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+screen_time,data=abcd.data.rep.st)
+mod10<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+screen_time,data=abcd.data.rep.st)
+
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/NIHTBX_ExpBifactor_Disc_ST.doc")
+
+tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/NIHTBX_ExpBifactor_Rep_ST.doc")
+
+```
+
+
+
+
+
+# Double check that results are not driven by psychopathology or psychotropic medication use:
+```{r}
+# Load in psychotropic medication use
+psychMed<-read.csv("/Users/askeller/Documents/Kellernet_PrelimAnalysis/RevisionAnalyses_PFNsCog/PsychotropicMeds/ABCD_Psychotropic_Medications.csv")
+psychMed_baseline <- psychMed[psychMed$eventname=="baseline_year_1_arm_1",c("subjectkey","ADHD_meds","Antidepressant_meds","Antipsychotic_meds")]
+psychMed_baseline$ADHD_meds<-as.factor(psychMed_baseline$ADHD_meds)
+psychMed_baseline$Antipsychotic_meds<-as.factor(psychMed_baseline$Antipsychotic_meds)
+psychMed_baseline$Antidepressant_meds<-as.factor(psychMed_baseline$Antidepressant_meds)
+
+# Load in diagnostic data
+ksads<-read.table("/Users/askeller/Documents/Kellernet_PrelimAnalysis/ksads/abcd_ksad01.txt",header=TRUE)
+ksads.baseline <- ksads[ksads$eventname=="baseline_year_1_arm_1",c("subjectkey","ksads_14_853_p","ksads_10_869_p")]
+ksads.adhd <- ksads.baseline[ksads.baseline$ksads_14_853_p<2,]
+ksads.adhd.anx <- ksads.adhd[ksads.adhd$ksads_10_869_p<2,]
+colnames(ksads.adhd.anx)<-c("subjectkey","ADHD","GAD")
+
+# Merge dataframes
+psych.data<-merge(psychMed_baseline,ksads.adhd.anx,by="subjectkey")
+abcd.data.disc.pfns.psych <- merge(abcd.data.disc.pfns,psych.data,by="subjectkey")
+abcd.data.rep.pfns.psych <- merge(abcd.data.rep.pfns,psych.data,by="subjectkey")
+abcd.data.disc.psych <- merge(abcd.data.disc,psych.data,by="subjectkey")
+abcd.data.rep.psych <- merge(abcd.data.rep,psych.data,by="subjectkey")
+abcd.data.disc.T0T2.psych <- merge(abcd.data.disc.T0T2,psych.data,by="subjectkey")
+abcd.data.rep.T0T2.psych <- merge(abcd.data.rep.T0T2,psych.data,by="subjectkey")
+
+# Run linear mixed effects models
+mod1<-lmer(PicVocab~interview_age+sex_at_birth+ADHD+GAD+ADHD_meds+Antidepressant_meds+Antipsychotic_meds+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.disc.psych)
+mod2<-lmer(Flanker~interview_age+sex_at_birth+ADHD+GAD+ADHD_meds+Antidepressant_meds+Antipsychotic_meds+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.disc.psych)
+mod3<-lmer(Picture~interview_age+sex_at_birth+ADHD+GAD+ADHD_meds+Antidepressant_meds+Antipsychotic_meds+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.disc.psych)
+mod4<-lmer(Pattern~interview_age+sex_at_birth+ADHD+GAD+ADHD_meds+Antidepressant_meds+Antipsychotic_meds+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.disc.psych)
+mod5<-lmer(Reading~interview_age+sex_at_birth+ADHD+GAD+ADHD_meds+Antidepressant_meds+Antipsychotic_meds+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.disc.psych)
+mod6<-lmer(PicVocab~interview_age+sex_at_birth+ADHD+GAD+ADHD_meds+Antidepressant_meds+Antipsychotic_meds+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.rep.psych)
+mod7<-lmer(Flanker~interview_age+sex_at_birth+ADHD+GAD+ADHD_meds+Antidepressant_meds+Antipsychotic_meds+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.rep.psych)
+mod8<-lmer(Picture~interview_age+sex_at_birth+ADHD+GAD+ADHD_meds+Antidepressant_meds+Antipsychotic_meds+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.rep.psych)
+mod9<-lmer(Pattern~interview_age+sex_at_birth+ADHD+GAD+ADHD_meds+Antidepressant_meds+Antipsychotic_meds+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.rep.psych)
+mod10<-lmer(Reading~interview_age+sex_at_birth+ADHD+GAD+ADHD_meds+Antidepressant_meds+Antipsychotic_meds+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.rep.psych)
+
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","ADHD","GAD","ADHD_meds","Antidepressant_meds","Antipsychotic_meds","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/NIHTBX_ExpBifactor_Disc_Psych.doc")
+
+tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","ADHD","GAD","ADHD_meds","Antidepressant_meds","Antipsychotic_meds","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/NIHTBX_ExpBifactor_Rep_Psych.doc")
+
+
+
+
+# Run linear mixed effects models
+mod1<-lmer(PicVocab_T2~interview_age+sex_at_birth+ADHD+GAD+ADHD_meds+Antidepressant_meds+Antipsychotic_meds+(1|rel_family_id)+(1|abcd_site)+General_SES+PicVocab,data=abcd.data.disc.T0T2.psych)
+mod2<-lmer(Flanker_T2~interview_age+sex_at_birth+ADHD+GAD+ADHD_meds+Antidepressant_meds+Antipsychotic_meds+(1|rel_family_id)+(1|abcd_site)+General_SES+Flanker,data=abcd.data.disc.T0T2.psych)
+mod3<-lmer(Picture_T2~interview_age+sex_at_birth+ADHD+GAD+ADHD_meds+Antidepressant_meds+Antipsychotic_meds+(1|rel_family_id)+(1|abcd_site)+General_SES+Picture,data=abcd.data.disc.T0T2.psych)
+mod4<-lmer(Pattern_T2~interview_age+sex_at_birth+ADHD+GAD+ADHD_meds+Antidepressant_meds+Antipsychotic_meds+(1|rel_family_id)+(1|abcd_site)+General_SES+Pattern,data=abcd.data.disc.T0T2.psych)
+mod5<-lmer(Reading_T2~interview_age+sex_at_birth+ADHD+GAD+ADHD_meds+Antidepressant_meds+Antipsychotic_meds+(1|rel_family_id)+(1|abcd_site)+General_SES+Reading,data=abcd.data.disc.T0T2.psych)
+mod6<-lmer(PicVocab_T2~interview_age+sex_at_birth+ADHD+GAD+ADHD_meds+Antidepressant_meds+Antipsychotic_meds+(1|rel_family_id)+(1|abcd_site)+General_SES+PicVocab,data=abcd.data.rep.T0T2.psych)
+mod7<-lmer(Flanker_T2~interview_age+sex_at_birth+ADHD+GAD+ADHD_meds+Antidepressant_meds+Antipsychotic_meds+(1|rel_family_id)+(1|abcd_site)+General_SES+Flanker,data=abcd.data.rep.T0T2.psych)
+mod8<-lmer(Picture_T2~interview_age+sex_at_birth+ADHD+GAD+ADHD_meds+Antidepressant_meds+Antipsychotic_meds+(1|rel_family_id)+(1|abcd_site)+General_SES+Picture,data=abcd.data.rep.T0T2.psych)
+mod9<-lmer(Pattern_T2~interview_age+sex_at_birth+ADHD+GAD+ADHD_meds+Antidepressant_meds+Antipsychotic_meds+(1|rel_family_id)+(1|abcd_site)+General_SES+Pattern,data=abcd.data.rep.T0T2.psych)
+mod10<-lmer(Reading_T2~interview_age+sex_at_birth+ADHD+GAD+ADHD_meds+Antidepressant_meds+Antipsychotic_meds+(1|rel_family_id)+(1|abcd_site)+General_SES+Reading,data=abcd.data.rep.T0T2.psych)
+
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","ADHD","GAD","ADHD_meds","Antidepressant_meds","Antipsychotic_meds","Exp-Factor","Baseline PicVocab","Baseline Flanker","Baseline Picture","Baseline Pattern","Baseline Reading"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/T2NIHTBX_GeneralSES_Disc_Psych.doc")
+
+tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","ADHD","GAD","ADHD_meds","Antidepressant_meds","Antipsychotic_meds","Exp-Factor","Baseline PicVocab","Baseline Flanker","Baseline Picture","Baseline Pattern","Baseline Reading"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/T2NIHTBX_GeneralSES_Rep_Psych.doc")
+```
+
+
+
+
+# Double check that results are over and above the effects of household income and parent education:
+```{r}
+
+mod1<-lmer(PicVocab~interview_age+sex_at_birth+household.income+high.educ+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.disc)
+mod2<-lmer(Flanker~interview_age+sex_at_birth+household.income+high.educ+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.disc)
+mod3<-lmer(Picture~interview_age+sex_at_birth+household.income+high.educ+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.disc)
+mod4<-lmer(Pattern~interview_age+sex_at_birth+household.income+high.educ+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.disc)
+mod5<-lmer(Reading~interview_age+sex_at_birth+household.income+high.educ+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.disc)
+mod6<-lmer(PicVocab~interview_age+sex_at_birth+household.income+high.educ+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.rep)
+mod7<-lmer(Flanker~interview_age+sex_at_birth+household.income+high.educ+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.rep)
+mod8<-lmer(Picture~interview_age+sex_at_birth+household.income+high.educ+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.rep)
+mod9<-lmer(Pattern~interview_age+sex_at_birth+household.income+high.educ+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.rep)
+mod10<-lmer(Reading~interview_age+sex_at_birth+household.income+high.educ+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.rep)
+
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","Household Income [50K-100K]","Household Income [>100K]","Parent Educ: HS Diploma/GED","Parent Educ: Some College","Parent Educ: Bachelor","Parent Educ: Post Graduate","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/NIHTBX_ExpBifactor_Disc_IncomeEduc.doc")
+
+tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","Household Income [50K-100K]","Household Income [>100K]","Parent Educ: HS Diploma/GED","Parent Educ: Some College","Parent Educ: Bachelor","Parent Educ: Post Graduate","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/NIHTBX_ExpBifactor_Rep_IncomeEduc.doc")
+
+
+
+
+
+mod1<-lmer(PicVocab_T2~interview_age+sex_at_birth+household.income+high.educ+(1|rel_family_id)+(1|abcd_site)+General_SES+PicVocab,data=abcd.data.disc.T0T2)
+mod2<-lmer(Flanker_T2~interview_age+sex_at_birth+household.income+high.educ+(1|rel_family_id)+(1|abcd_site)+General_SES+Flanker,data=abcd.data.disc.T0T2)
+mod3<-lmer(Picture_T2~interview_age+sex_at_birth+household.income+high.educ+(1|rel_family_id)+(1|abcd_site)+General_SES+Picture,data=abcd.data.disc.T0T2)
+mod4<-lmer(Pattern_T2~interview_age+sex_at_birth+household.income+high.educ+(1|rel_family_id)+(1|abcd_site)+General_SES+Pattern,data=abcd.data.disc.T0T2)
+mod5<-lmer(Reading_T2~interview_age+sex_at_birth+household.income+high.educ+(1|rel_family_id)+(1|abcd_site)+General_SES+Reading,data=abcd.data.disc.T0T2)
+mod6<-lmer(PicVocab_T2~interview_age+sex_at_birth+household.income+high.educ+(1|rel_family_id)+(1|abcd_site)+General_SES+PicVocab,data=abcd.data.rep.T0T2)
+mod7<-lmer(Flanker_T2~interview_age+sex_at_birth+household.income+high.educ+(1|rel_family_id)+(1|abcd_site)+General_SES+Flanker,data=abcd.data.rep.T0T2)
+mod8<-lmer(Picture_T2~interview_age+sex_at_birth+household.income+high.educ+(1|rel_family_id)+(1|abcd_site)+General_SES+Picture,data=abcd.data.rep.T0T2)
+mod9<-lmer(Pattern_T2~interview_age+sex_at_birth+household.income+high.educ+(1|rel_family_id)+(1|abcd_site)+General_SES+Pattern,data=abcd.data.rep.T0T2)
+mod10<-lmer(Reading_T2~interview_age+sex_at_birth+household.income+high.educ+(1|rel_family_id)+(1|abcd_site)+General_SES+Reading,data=abcd.data.rep.T0T2)
+
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","Household Income [50K-100K]","Household Income [>100K]","Parent Educ: HS Diploma/GED","Parent Educ: Some College","Parent Educ: Bachelor","Parent Educ: Post Graduate","Exp-Factor","Baseline PicVocab","Baseline Flanker","Baseline Picture","Baseline Pattern","Baseline Reading"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/T2NIHTBX_GeneralSES_Disc_IncomeEduc.doc")
+
+tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","Household Income [50K-100K]","Household Income [>100K]","Parent Educ: HS Diploma/GED","Parent Educ: Some College","Parent Educ: Bachelor","Parent Educ: Post Graduate","Exp-Factor","Baseline PicVocab","Baseline Flanker","Baseline Picture","Baseline Pattern","Baseline Reading"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/T2NIHTBX_GeneralSES_Rep_IncomeEduc.doc")
+```
+
+
