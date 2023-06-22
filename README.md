@@ -38,5 +38,5 @@ Note #3: Covariates for age, sex, head motion, and ABCD site are regressed out o
 
 This version of the ridge regressions will train on one sub-sample of the ABCD data (also referred to as the “Discovery” sub-sample) and test on the other (also referred to as the “Replication” sub-sample), and vice versa. 
 
-get_data_for_ridge_expfactor.R
+First, use **get_data_for_ridge_expfactor.R** to prepare the data. Then, use **submit_all_expfactor.py** and **submit_expfactor.py** to submit CUBIC jobs to run the ridge regressions. These scripts will call the wrapper **expfactor_proc_predict.py** which will call **preprocess_expfactor.py** and **predict_matchedsamples_ExpFactor.py**
 
