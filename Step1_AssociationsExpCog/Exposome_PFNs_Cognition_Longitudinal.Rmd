@@ -1,0 +1,436 @@
+---
+title: "Exposome_PFNs_Cognition_Longitudinal"
+output: html_document
+date: '2023-05-04'
+---
+
+
+# Load required packages
+```{r}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(lsr)
+library(lme4)
+library(lmerTest)
+library(mediation)
+library(ggcorrplot)
+library(corrplot)
+library(RColorBrewer)
+library(glmnet)
+library(mgcv)
+library(gamm4)
+library(readr)
+library(devtools)
+install_github("jfortin1/neuroCombatData")
+install_github("jfortin1/neuroCombat_Rpackage")
+library(neuroCombat)
+library(R.matlab)
+library(mgcv)
+library(ggplot2)
+library(visreg)
+library(ggtext)
+library(sjPlot)
+```
+
+
+# Load in the bifactor scores
+```{r}
+bifactor_scores<-read.csv("/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/abcd_longitudinal_factor_scores_7f_bifactor.csv")
+colnames(bifactor_scores)[1]<-"subjectkey"
+bifactor_scores_T0 <- bifactor_scores[bifactor_scores$Timepoint=="baseline_year_1_arm_1",]
+bifactor_scores_T2 <- bifactor_scores[bifactor_scores$Timepoint=="2_year_follow_up_y_arm_1",]
+colnames(bifactor_scores_T2)<-c("subjectkey","ID_Timepoint","Timepoint","General_SES_T2","School_T2","Family_Values_T2","Family_Turmoil_T2","Dense_Urban_Poverty_T2","Extracurriculars_T2","Screen_Time_T2","Timepoint_numeric","Site")
+```
+
+
+
+# Load in the cognition data
+```{r}
+nihtb<-read.table("/Users/askeller/Documents/Kellernet_PrelimAnalysis/NihTB/abcd_tbss01.txt",header=TRUE)
+
+# Convert cognitive data to numeric values
+nihtb$nihtbx_flanker_uncorrected <- as.numeric(nihtb$nihtbx_flanker_uncorrected)
+nihtb$nihtbx_picvocab_uncorrected <- as.numeric(nihtb$nihtbx_picvocab_uncorrected)
+nihtb$nihtbx_pattern_uncorrected <- as.numeric(nihtb$nihtbx_pattern_uncorrected)
+nihtb$nihtbx_picture_uncorrected <- as.numeric(nihtb$nihtbx_picture_uncorrected)
+nihtb$nihtbx_reading_uncorrected <- as.numeric(nihtb$nihtbx_reading_uncorrected)
+
+# Extract and rename cognitive variables for baseline data and T2 data
+nihtb_T0 <- nihtb[nihtb$eventname=="baseline_year_1_arm_1",c("subjectkey","nihtbx_picvocab_uncorrected","nihtbx_flanker_uncorrected","nihtbx_pattern_uncorrected","nihtbx_reading_uncorrected","nihtbx_picture_uncorrected")]
+colnames(nihtb_T0)<-c("subjectkey","PicVocab","Flanker","Pattern","Reading","Picture")
+nihtb_T2 <- nihtb[nihtb$eventname=="2_year_follow_up_y_arm_1",c("subjectkey","nihtbx_picvocab_uncorrected","nihtbx_flanker_uncorrected","nihtbx_pattern_uncorrected","nihtbx_reading_uncorrected","nihtbx_picture_uncorrected")]
+colnames(nihtb_T2)<-c("subjectkey","PicVocab_T2","Flanker_T2","Pattern_T2","Reading_T2","Picture_T2")
+
+```
+
+
+
+# Load in Family and Site covariates
+```{r}
+family <-read.table("/Users/askeller/Documents/Kellernet_PrelimAnalysis/ses/acspsw03.txt",header=TRUE)
+family_T0<-family[family$eventname=="baseline_year_1_arm_1",]
+site_info <- readRDS("/Users/askeller/Documents/Kellernet_PrelimAnalysis/DEAP-siteID.rds")
+site_T0<-site_info[site_info$event_name=="baseline_year_1_arm_1",]
+colnames(site_T0)[1]<-"subjectkey"
+```
+
+
+
+# Load matched Discovery/Replication samples
+```{r}
+discrep<-read_tsv("/Users/askeller/Documents/Kellernet_PrelimAnalysis/participants.tsv")
+discrep.T0<-discrep[discrep$session_id=="ses-baselineYear1Arm1",c("participant_id","matched_group")]
+colnames(discrep.T0)[1]<-c("subjectkey")
+discrep.T0$subjectkey <- gsub(pattern="sub-NDAR",replacement="NDAR_", discrep.T0$subjectkey)
+discrep.T0<-discrep.T0 %>% distinct()
+```
+
+
+# Combine the data into one dataframe
+```{r}
+step1 <- merge(nihtb_T0,bifactor_scores_T0[,c("subjectkey",setdiff(colnames(bifactor_scores_T0),colnames(nihtb_T0)))],by="subjectkey")
+step2 <- merge(step1,family_T0[,c("subjectkey",setdiff(colnames(family_T0),colnames(step1)))],by="subjectkey")
+step3 <- merge(step2,site_T0[,c("subjectkey",setdiff(colnames(site_T0),colnames(step2)))],by="subjectkey")
+step4 <- merge(step3,discrep.T0[,c("subjectkey",setdiff(colnames(discrep.T0),colnames(step3)))],by="subjectkey")
+step5 <- merge(nihtb_T2,bifactor_scores_T2[,c("subjectkey",setdiff(colnames(bifactor_scores_T2),colnames(nihtb_T2)))],by="subjectkey")
+step6 <- merge(step4,step5[,c("subjectkey",setdiff(colnames(step5),colnames(step4)))],by="subjectkey")
+
+# this dataframe is n=6,530 with 70 variables
+```
+
+
+# Subset the participants with all data available for these analyses
+```{r}
+abcd.data<-step6[,c("subjectkey","matched_group","interview_age","sex","abcd_site","rel_family_id","race.6level","household.income","high.educ","sex_at_birth","General_SES","School","Family_Values","Family_Turmoil","Dense_Urban_Poverty","Extracurriculars","Screen_Time","PicVocab","Flanker","Picture","Pattern","Reading","General_SES_T2","School_T2","Family_Values_T2","Family_Turmoil_T2","Dense_Urban_Poverty_T2","Extracurriculars_T2","Screen_Time_T2","PicVocab_T2","Flanker_T2","Picture_T2","Pattern_T2","Reading_T2")]
+
+abcd.data<-abcd.data[complete.cases(abcd.data),]
+abcd.data.disc<-abcd.data[abcd.data$matched_group==1,]
+abcd.data.rep<-abcd.data[abcd.data$matched_group==2,]
+
+# final full dataframe is n=5,632 with 34 variables
+# Discovery: n=2,763, Replication: n=2,739
+```
+
+
+# Make sure age is numeric
+```{r}
+abcd.data$interview_age<-as.numeric(abcd.data$interview_age)
+abcd.data.disc$interview_age<-as.numeric(abcd.data.disc$interview_age)
+abcd.data.rep$interview_age<-as.numeric(abcd.data.rep$interview_age)
+```
+
+
+
+# Z-score everything, separately in disc. and rep. sets:
+```{r}
+abcd.data.disc$PicVocab<-(abcd.data.disc$PicVocab-mean(abcd.data.disc$PicVocab,na.rm=TRUE))/sd(abcd.data.disc$PicVocab,na.rm=TRUE)
+abcd.data.disc$Flanker<-(abcd.data.disc$Flanker-mean(abcd.data.disc$Flanker,na.rm=TRUE))/sd(abcd.data.disc$Flanker,na.rm=TRUE)
+abcd.data.disc$Picture<-(abcd.data.disc$Picture-mean(abcd.data.disc$Picture,na.rm=TRUE))/sd(abcd.data.disc$Picture,na.rm=TRUE)
+abcd.data.disc$Pattern<-(abcd.data.disc$Pattern-mean(abcd.data.disc$Pattern,na.rm=TRUE))/sd(abcd.data.disc$Pattern,na.rm=TRUE)
+abcd.data.disc$Reading<-(abcd.data.disc$Reading-mean(abcd.data.disc$Reading,na.rm=TRUE))/sd(abcd.data.disc$Reading,na.rm=TRUE)
+abcd.data.disc$interview_age<-(abcd.data.disc$interview_age-mean(abcd.data.disc$interview_age,na.rm=TRUE))/sd(abcd.data.disc$interview_age,na.rm=TRUE)
+
+abcd.data.rep$PicVocab<-(abcd.data.rep$PicVocab-mean(abcd.data.rep$PicVocab,na.rm=TRUE))/sd(abcd.data.rep$PicVocab,na.rm=TRUE)
+abcd.data.rep$Flanker<-(abcd.data.rep$Flanker-mean(abcd.data.rep$Flanker,na.rm=TRUE))/sd(abcd.data.rep$Flanker,na.rm=TRUE)
+abcd.data.rep$Picture<-(abcd.data.rep$Picture-mean(abcd.data.rep$Picture,na.rm=TRUE))/sd(abcd.data.rep$Picture,na.rm=TRUE)
+abcd.data.rep$Pattern<-(abcd.data.rep$Pattern-mean(abcd.data.rep$Pattern,na.rm=TRUE))/sd(abcd.data.rep$Pattern,na.rm=TRUE)
+abcd.data.rep$Reading<-(abcd.data.rep$Reading-mean(abcd.data.rep$Reading,na.rm=TRUE))/sd(abcd.data.rep$Reading,na.rm=TRUE)
+abcd.data.rep$interview_age<-(abcd.data.rep$interview_age-mean(abcd.data.rep$interview_age,na.rm=TRUE))/sd(abcd.data.rep$interview_age,na.rm=TRUE)
+
+
+abcd.data$PicVocab<-(abcd.data$PicVocab-mean(abcd.data$PicVocab,na.rm=TRUE))/sd(abcd.data$PicVocab,na.rm=TRUE)
+abcd.data$Flanker<-(abcd.data$Flanker-mean(abcd.data$Flanker,na.rm=TRUE))/sd(abcd.data$Flanker,na.rm=TRUE)
+abcd.data$Picture<-(abcd.data$Picture-mean(abcd.data$Picture,na.rm=TRUE))/sd(abcd.data$Picture,na.rm=TRUE)
+abcd.data$Pattern<-(abcd.data$Pattern-mean(abcd.data$Pattern,na.rm=TRUE))/sd(abcd.data$Pattern,na.rm=TRUE)
+abcd.data$Reading<-(abcd.data$Reading-mean(abcd.data$Reading,na.rm=TRUE))/sd(abcd.data$Reading,na.rm=TRUE)
+abcd.data$interview_age<-(abcd.data$interview_age-mean(abcd.data$interview_age,na.rm=TRUE))/sd(abcd.data$interview_age,na.rm=TRUE)
+
+
+abcd.data.disc$PicVocab_T2<-(abcd.data.disc$PicVocab_T2-mean(abcd.data.disc$PicVocab_T2,na.rm=TRUE))/sd(abcd.data.disc$PicVocab_T2,na.rm=TRUE)
+abcd.data.disc$Flanker_T2<-(abcd.data.disc$Flanker_T2-mean(abcd.data.disc$Flanker_T2,na.rm=TRUE))/sd(abcd.data.disc$Flanker_T2,na.rm=TRUE)
+abcd.data.disc$Picture_T2<-(abcd.data.disc$Picture_T2-mean(abcd.data.disc$Picture_T2,na.rm=TRUE))/sd(abcd.data.disc$Picture_T2,na.rm=TRUE)
+abcd.data.disc$Pattern_T2<-(abcd.data.disc$Pattern_T2-mean(abcd.data.disc$Pattern_T2,na.rm=TRUE))/sd(abcd.data.disc$Pattern_T2,na.rm=TRUE)
+abcd.data.disc$Reading_T2<-(abcd.data.disc$Reading_T2-mean(abcd.data.disc$Reading_T2,na.rm=TRUE))/sd(abcd.data.disc$Reading_T2,na.rm=TRUE)
+
+
+abcd.data.rep$PicVocab_T2<-(abcd.data.rep$PicVocab_T2-mean(abcd.data.rep$PicVocab_T2,na.rm=TRUE))/sd(abcd.data.rep$PicVocab_T2,na.rm=TRUE)
+abcd.data.rep$Flanker_T2<-(abcd.data.rep$Flanker_T2-mean(abcd.data.rep$Flanker_T2,na.rm=TRUE))/sd(abcd.data.rep$Flanker_T2,na.rm=TRUE)
+abcd.data.rep$Picture_T2<-(abcd.data.rep$Picture_T2-mean(abcd.data.rep$Picture_T2,na.rm=TRUE))/sd(abcd.data.rep$Picture_T2,na.rm=TRUE)
+abcd.data.rep$Pattern_T2<-(abcd.data.rep$Pattern_T2-mean(abcd.data.rep$Pattern_T2,na.rm=TRUE))/sd(abcd.data.rep$Pattern_T2,na.rm=TRUE)
+abcd.data.rep$Reading_T2<-(abcd.data.rep$Reading_T2-mean(abcd.data.rep$Reading_T2,na.rm=TRUE))/sd(abcd.data.rep$Reading_T2,na.rm=TRUE)
+
+
+abcd.data$PicVocab_T2<-(abcd.data$PicVocab_T2-mean(abcd.data$PicVocab_T2,na.rm=TRUE))/sd(abcd.data$PicVocab_T2,na.rm=TRUE)
+abcd.data$Flanker_T2<-(abcd.data$Flanker_T2-mean(abcd.data$Flanker_T2,na.rm=TRUE))/sd(abcd.data$Flanker_T2,na.rm=TRUE)
+abcd.data$Picture_T2<-(abcd.data$Picture_T2-mean(abcd.data$Picture_T2,na.rm=TRUE))/sd(abcd.data$Picture_T2,na.rm=TRUE)
+abcd.data$Pattern_T2<-(abcd.data$Pattern_T2-mean(abcd.data$Pattern_T2,na.rm=TRUE))/sd(abcd.data$Pattern_T2,na.rm=TRUE)
+abcd.data$Reading_T2<-(abcd.data$Reading_T2-mean(abcd.data$Reading_T2,na.rm=TRUE))/sd(abcd.data$Reading_T2,na.rm=TRUE)
+
+```
+
+
+# Add PFNs data
+```{r}
+# First load in the spatial extent of each PFN (they're in order, 1-17)
+pfn_sizes <- read.csv("/Users/askeller/Documents/Kellernet_PrelimAnalysis/All_PFN_sizes.csv") 
+
+# Change PFN column names so they're sensible
+colnames(pfn_sizes)<-c("subjectkey","PFN1","PFN2","PFN3","PFN4","PFN5","PFN6","PFN7","PFN8","PFN9","PFN10","PFN11","PFN12","PFN13","PFN14","PFN15","PFN16","PFN17")
+pfn_sizes$subjectkey<-gsub('sub-NDARINV','NDAR_INV',pfn_sizes$subjectkey)
+
+
+# Remove subjects based on the following head motion criteria:
+## 1) 8min of retained TRs (600 TRs)
+## 2) ABCD Booleans for rest and T1
+num_TRs <- read.csv("/Users/askeller/Documents/Kellernet_PrelimAnalysis/num_TRs_by_subj_redo.csv")
+pfn_sizes_TRs<-merge(pfn_sizes,num_TRs,by="subjectkey")
+pfn_sizes_cleanTRs<-pfn_sizes_TRs[pfn_sizes_TRs$numTRs>=600,]
+
+# Remove participants based on booleans from ABCD
+abcd_imgincl01 <- read.csv("/Users/askeller/Documents/Kellernet_PrelimAnalysis/abcd_imgincl01.csv")
+abcd_imgincl01 <- abcd_imgincl01[abcd_imgincl01$eventnam=="baseline_year_1_arm_1",]
+abcd_imgincl01 <- abcd_imgincl01[!abcd_imgincl01$visit=="",] 
+abcd_imgincl01 <- abcd_imgincl01[abcd_imgincl01$imgincl_t1w_include==1,]
+abcd_imgincl01 <- abcd_imgincl01[abcd_imgincl01$imgincl_rsfmri_include==1,] 
+pfn_sizes_cleanTRs_passQC <- merge(pfn_sizes_cleanTRs,abcd_imgincl01[, c("subjectkey",'imgincl_t1w_include')],by="subjectkey") 
+
+# Add mean FD (fractional displacement is a measure of head motion)
+meanFD <- read.csv("/Users/askeller/Documents/Kellernet_PrelimAnalysis/PFN_Gradients_CombinedScript/getFD/meanFD_031822.csv")
+colnames(meanFD)<-c("subjectkey","meanFD")
+meanFD$subjectkey <- gsub(pattern="sub-NDAR",replacement="NDAR_", meanFD$subjectkey)
+pfn_sizes_cleanTRs_passQC_meanFD <- merge(pfn_sizes_cleanTRs_passQC,meanFD,by="subjectkey")
+
+
+# Combine dataframes
+abcd.data.pfns <- merge(abcd.data,pfn_sizes_cleanTRs_passQC_meanFD[,c("subjectkey",setdiff(colnames(pfn_sizes_cleanTRs_passQC_meanFD),colnames(abcd.data)))],by="subjectkey")
+abcd.data.disc.pfns <- merge(abcd.data.disc,pfn_sizes_cleanTRs_passQC_meanFD[,c("subjectkey",setdiff(colnames(pfn_sizes_cleanTRs_passQC_meanFD),colnames(abcd.data.disc)))],by="subjectkey")
+abcd.data.rep.pfns <- merge(abcd.data.rep,pfn_sizes_cleanTRs_passQC_meanFD[,c("subjectkey",setdiff(colnames(pfn_sizes_cleanTRs_passQC_meanFD),colnames(abcd.data.rep)))],by="subjectkey")
+
+## n=6,686 with Discovery n=3,361 and Replication n=3,361
+
+# Z-score separately in discovery and replication samples
+abcd.data.disc.pfns$PFN1<-(abcd.data.disc.pfns$PFN1-mean(abcd.data.disc.pfns$PFN1,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN1,na.rm=TRUE)
+abcd.data.disc.pfns$PFN2<-(abcd.data.disc.pfns$PFN2-mean(abcd.data.disc.pfns$PFN2,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN2,na.rm=TRUE)
+abcd.data.disc.pfns$PFN3<-(abcd.data.disc.pfns$PFN3-mean(abcd.data.disc.pfns$PFN3,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN3,na.rm=TRUE)
+abcd.data.disc.pfns$PFN4<-(abcd.data.disc.pfns$PFN4-mean(abcd.data.disc.pfns$PFN4,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN4,na.rm=TRUE)
+abcd.data.disc.pfns$PFN5<-(abcd.data.disc.pfns$PFN5-mean(abcd.data.disc.pfns$PFN5,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN5,na.rm=TRUE)
+abcd.data.disc.pfns$PFN6<-(abcd.data.disc.pfns$PFN6-mean(abcd.data.disc.pfns$PFN6,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN6,na.rm=TRUE)
+abcd.data.disc.pfns$PFN7<-(abcd.data.disc.pfns$PFN7-mean(abcd.data.disc.pfns$PFN7,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN7,na.rm=TRUE)
+abcd.data.disc.pfns$PFN8<-(abcd.data.disc.pfns$PFN8-mean(abcd.data.disc.pfns$PFN8,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN8,na.rm=TRUE)
+abcd.data.disc.pfns$PFN9<-(abcd.data.disc.pfns$PFN9-mean(abcd.data.disc.pfns$PFN9,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN9,na.rm=TRUE)
+abcd.data.disc.pfns$PFN10<-(abcd.data.disc.pfns$PFN10-mean(abcd.data.disc.pfns$PFN10,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN10,na.rm=TRUE)
+abcd.data.disc.pfns$PFN11<-(abcd.data.disc.pfns$PFN11-mean(abcd.data.disc.pfns$PFN11,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN11,na.rm=TRUE)
+abcd.data.disc.pfns$PFN12<-(abcd.data.disc.pfns$PFN12-mean(abcd.data.disc.pfns$PFN12,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN12,na.rm=TRUE)
+abcd.data.disc.pfns$PFN13<-(abcd.data.disc.pfns$PFN13-mean(abcd.data.disc.pfns$PFN13,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN13,na.rm=TRUE)
+abcd.data.disc.pfns$PFN14<-(abcd.data.disc.pfns$PFN14-mean(abcd.data.disc.pfns$PFN14,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN14,na.rm=TRUE)
+abcd.data.disc.pfns$PFN15<-(abcd.data.disc.pfns$PFN15-mean(abcd.data.disc.pfns$PFN15,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN15,na.rm=TRUE)
+abcd.data.disc.pfns$PFN16<-(abcd.data.disc.pfns$PFN16-mean(abcd.data.disc.pfns$PFN16,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN16,na.rm=TRUE)
+abcd.data.disc.pfns$PFN17<-(abcd.data.disc.pfns$PFN17-mean(abcd.data.disc.pfns$PFN17,na.rm=TRUE))/sd(abcd.data.disc.pfns$PFN17,na.rm=TRUE)
+
+abcd.data.rep.pfns$PFN1<-(abcd.data.rep.pfns$PFN1-mean(abcd.data.rep.pfns$PFN1,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN1,na.rm=TRUE)
+abcd.data.rep.pfns$PFN2<-(abcd.data.rep.pfns$PFN2-mean(abcd.data.rep.pfns$PFN2,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN2,na.rm=TRUE)
+abcd.data.rep.pfns$PFN3<-(abcd.data.rep.pfns$PFN3-mean(abcd.data.rep.pfns$PFN3,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN3,na.rm=TRUE)
+abcd.data.rep.pfns$PFN4<-(abcd.data.rep.pfns$PFN4-mean(abcd.data.rep.pfns$PFN4,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN4,na.rm=TRUE)
+abcd.data.rep.pfns$PFN5<-(abcd.data.rep.pfns$PFN5-mean(abcd.data.rep.pfns$PFN5,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN5,na.rm=TRUE)
+abcd.data.rep.pfns$PFN6<-(abcd.data.rep.pfns$PFN6-mean(abcd.data.rep.pfns$PFN6,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN6,na.rm=TRUE)
+abcd.data.rep.pfns$PFN7<-(abcd.data.rep.pfns$PFN7-mean(abcd.data.rep.pfns$PFN7,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN7,na.rm=TRUE)
+abcd.data.rep.pfns$PFN8<-(abcd.data.rep.pfns$PFN8-mean(abcd.data.rep.pfns$PFN8,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN8,na.rm=TRUE)
+abcd.data.rep.pfns$PFN9<-(abcd.data.rep.pfns$PFN9-mean(abcd.data.rep.pfns$PFN9,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN9,na.rm=TRUE)
+abcd.data.rep.pfns$PFN10<-(abcd.data.rep.pfns$PFN10-mean(abcd.data.rep.pfns$PFN10,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN10,na.rm=TRUE)
+abcd.data.rep.pfns$PFN11<-(abcd.data.rep.pfns$PFN11-mean(abcd.data.rep.pfns$PFN11,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN11,na.rm=TRUE)
+abcd.data.rep.pfns$PFN12<-(abcd.data.rep.pfns$PFN12-mean(abcd.data.rep.pfns$PFN12,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN12,na.rm=TRUE)
+abcd.data.rep.pfns$PFN13<-(abcd.data.rep.pfns$PFN13-mean(abcd.data.rep.pfns$PFN13,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN13,na.rm=TRUE)
+abcd.data.rep.pfns$PFN14<-(abcd.data.rep.pfns$PFN14-mean(abcd.data.rep.pfns$PFN14,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN14,na.rm=TRUE)
+abcd.data.rep.pfns$PFN15<-(abcd.data.rep.pfns$PFN15-mean(abcd.data.rep.pfns$PFN15,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN15,na.rm=TRUE)
+abcd.data.rep.pfns$PFN16<-(abcd.data.rep.pfns$PFN16-mean(abcd.data.rep.pfns$PFN16,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN16,na.rm=TRUE)
+abcd.data.rep.pfns$PFN17<-(abcd.data.rep.pfns$PFN17-mean(abcd.data.rep.pfns$PFN17,na.rm=TRUE))/sd(abcd.data.rep.pfns$PFN17,na.rm=TRUE)
+
+
+abcd.data.pfns$PFN1<-(abcd.data.pfns$PFN1-mean(abcd.data.pfns$PFN1,na.rm=TRUE))/sd(abcd.data.pfns$PFN1,na.rm=TRUE)
+abcd.data.pfns$PFN2<-(abcd.data.pfns$PFN2-mean(abcd.data.pfns$PFN2,na.rm=TRUE))/sd(abcd.data.pfns$PFN2,na.rm=TRUE)
+abcd.data.pfns$PFN3<-(abcd.data.pfns$PFN3-mean(abcd.data.pfns$PFN3,na.rm=TRUE))/sd(abcd.data.pfns$PFN3,na.rm=TRUE)
+abcd.data.pfns$PFN4<-(abcd.data.pfns$PFN4-mean(abcd.data.pfns$PFN4,na.rm=TRUE))/sd(abcd.data.pfns$PFN4,na.rm=TRUE)
+abcd.data.pfns$PFN5<-(abcd.data.pfns$PFN5-mean(abcd.data.pfns$PFN5,na.rm=TRUE))/sd(abcd.data.pfns$PFN5,na.rm=TRUE)
+abcd.data.pfns$PFN6<-(abcd.data.pfns$PFN6-mean(abcd.data.pfns$PFN6,na.rm=TRUE))/sd(abcd.data.pfns$PFN6,na.rm=TRUE)
+abcd.data.pfns$PFN7<-(abcd.data.pfns$PFN7-mean(abcd.data.pfns$PFN7,na.rm=TRUE))/sd(abcd.data.pfns$PFN7,na.rm=TRUE)
+abcd.data.pfns$PFN8<-(abcd.data.pfns$PFN8-mean(abcd.data.pfns$PFN8,na.rm=TRUE))/sd(abcd.data.pfns$PFN8,na.rm=TRUE)
+abcd.data.pfns$PFN9<-(abcd.data.pfns$PFN9-mean(abcd.data.pfns$PFN9,na.rm=TRUE))/sd(abcd.data.pfns$PFN9,na.rm=TRUE)
+abcd.data.pfns$PFN10<-(abcd.data.pfns$PFN10-mean(abcd.data.pfns$PFN10,na.rm=TRUE))/sd(abcd.data.pfns$PFN10,na.rm=TRUE)
+abcd.data.pfns$PFN11<-(abcd.data.pfns$PFN11-mean(abcd.data.pfns$PFN11,na.rm=TRUE))/sd(abcd.data.pfns$PFN11,na.rm=TRUE)
+abcd.data.pfns$PFN12<-(abcd.data.pfns$PFN12-mean(abcd.data.pfns$PFN12,na.rm=TRUE))/sd(abcd.data.pfns$PFN12,na.rm=TRUE)
+abcd.data.pfns$PFN13<-(abcd.data.pfns$PFN13-mean(abcd.data.pfns$PFN13,na.rm=TRUE))/sd(abcd.data.pfns$PFN13,na.rm=TRUE)
+abcd.data.pfns$PFN14<-(abcd.data.pfns$PFN14-mean(abcd.data.pfns$PFN14,na.rm=TRUE))/sd(abcd.data.pfns$PFN14,na.rm=TRUE)
+abcd.data.pfns$PFN15<-(abcd.data.pfns$PFN15-mean(abcd.data.pfns$PFN15,na.rm=TRUE))/sd(abcd.data.pfns$PFN15,na.rm=TRUE)
+abcd.data.pfns$PFN16<-(abcd.data.pfns$PFN16-mean(abcd.data.pfns$PFN16,na.rm=TRUE))/sd(abcd.data.pfns$PFN16,na.rm=TRUE)
+abcd.data.pfns$PFN17<-(abcd.data.pfns$PFN17-mean(abcd.data.pfns$PFN17,na.rm=TRUE))/sd(abcd.data.pfns$PFN17,na.rm=TRUE)
+
+
+# n=1,921 for discovery, n=1,916 for replication
+# n=3,837 total
+```
+
+
+# calculate needed vars and z-score them
+```{r}
+# fronto-parietal topography
+abcd.data.disc.pfns$FPN <- rowSums(data.frame(abcd.data.disc.pfns$PFN3,abcd.data.disc.pfns$PFN15,abcd.data.disc.pfns$PFN17))
+abcd.data.rep.pfns$FPN <- rowSums(data.frame(abcd.data.rep.pfns$PFN3,abcd.data.rep.pfns$PFN15,abcd.data.rep.pfns$PFN17))
+
+# Delta cognition
+abcd.data.disc.pfns$delta_PicVocab <- abcd.data.disc.pfns$PicVocab_T2 - abcd.data.disc.pfns$PicVocab
+abcd.data.rep.pfns$delta_PicVocab <- abcd.data.rep.pfns$PicVocab_T2 - abcd.data.rep.pfns$PicVocab
+abcd.data.disc.pfns$delta_Flanker <- abcd.data.disc.pfns$Flanker_T2 - abcd.data.disc.pfns$Flanker
+abcd.data.rep.pfns$delta_Flanker <- abcd.data.rep.pfns$Flanker_T2 - abcd.data.rep.pfns$Flanker
+abcd.data.disc.pfns$delta_Picture <- abcd.data.disc.pfns$Picture_T2 - abcd.data.disc.pfns$Picture
+abcd.data.rep.pfns$delta_Picture <- abcd.data.rep.pfns$Picture_T2 - abcd.data.rep.pfns$Picture
+abcd.data.disc.pfns$delta_Pattern <- abcd.data.disc.pfns$Pattern_T2 - abcd.data.disc.pfns$Pattern
+abcd.data.rep.pfns$delta_Pattern <- abcd.data.rep.pfns$Pattern_T2 - abcd.data.rep.pfns$Pattern
+abcd.data.disc.pfns$delta_Reading <- abcd.data.disc.pfns$Reading_T2 - abcd.data.disc.pfns$Reading
+abcd.data.rep.pfns$delta_Reading <- abcd.data.rep.pfns$Reading_T2 - abcd.data.rep.pfns$Reading
+
+# Delta exp-factor
+abcd.data.disc.pfns$delta_General_SES <- abcd.data.disc.pfns$General_SES_T2 - abcd.data.disc.pfns$General_SES
+abcd.data.rep.pfns$delta_General_SES <- abcd.data.rep.pfns$General_SES_T2 - abcd.data.rep.pfns$General_SES
+
+# Z-score all our variables in the discovery and replication samples separately
+abcd.data.disc.pfns$FPN<-(abcd.data.disc.pfns$FPN-mean(abcd.data.disc.pfns$FPN,na.rm=TRUE))/sd(abcd.data.disc.pfns$FPN,na.rm=TRUE)
+abcd.data.rep.pfns$FPN<-(abcd.data.rep.pfns$FPN-mean(abcd.data.rep.pfns$FPN,na.rm=TRUE))/sd(abcd.data.rep.pfns$FPN,na.rm=TRUE)
+abcd.data.disc.pfns$delta_PicVocab<-(abcd.data.disc.pfns$delta_PicVocab-mean(abcd.data.disc.pfns$delta_PicVocab,na.rm=TRUE))/sd(abcd.data.disc.pfns$delta_PicVocab,na.rm=TRUE)
+abcd.data.rep.pfns$delta_PicVocab<-(abcd.data.rep.pfns$delta_PicVocab-mean(abcd.data.rep.pfns$delta_PicVocab,na.rm=TRUE))/sd(abcd.data.rep.pfns$delta_PicVocab,na.rm=TRUE)
+abcd.data.disc.pfns$delta_Flanker<-(abcd.data.disc.pfns$delta_Flanker-mean(abcd.data.disc.pfns$delta_Flanker,na.rm=TRUE))/sd(abcd.data.disc.pfns$delta_Flanker,na.rm=TRUE)
+abcd.data.rep.pfns$delta_Flanker<-(abcd.data.rep.pfns$delta_Flanker-mean(abcd.data.rep.pfns$delta_Flanker,na.rm=TRUE))/sd(abcd.data.rep.pfns$delta_Flanker,na.rm=TRUE)
+abcd.data.disc.pfns$delta_Picture<-(abcd.data.disc.pfns$delta_Picture-mean(abcd.data.disc.pfns$delta_Picture,na.rm=TRUE))/sd(abcd.data.disc.pfns$delta_Picture,na.rm=TRUE)
+abcd.data.rep.pfns$delta_Picture<-(abcd.data.rep.pfns$delta_Picture-mean(abcd.data.rep.pfns$delta_Picture,na.rm=TRUE))/sd(abcd.data.rep.pfns$delta_Picture,na.rm=TRUE)
+abcd.data.disc.pfns$delta_Pattern<-(abcd.data.disc.pfns$delta_Pattern-mean(abcd.data.disc.pfns$delta_Pattern,na.rm=TRUE))/sd(abcd.data.disc.pfns$delta_Pattern,na.rm=TRUE)
+abcd.data.rep.pfns$delta_Pattern<-(abcd.data.rep.pfns$delta_Pattern-mean(abcd.data.rep.pfns$delta_Pattern,na.rm=TRUE))/sd(abcd.data.rep.pfns$delta_Pattern,na.rm=TRUE)
+abcd.data.disc.pfns$delta_Reading<-(abcd.data.disc.pfns$delta_Reading-mean(abcd.data.disc.pfns$delta_Reading,na.rm=TRUE))/sd(abcd.data.disc.pfns$delta_Reading,na.rm=TRUE)
+abcd.data.rep.pfns$delta_Reading<-(abcd.data.rep.pfns$delta_Reading-mean(abcd.data.rep.pfns$delta_Reading,na.rm=TRUE))/sd(abcd.data.rep.pfns$delta_Reading,na.rm=TRUE)
+abcd.data.disc.pfns$delta_General_SES<-(abcd.data.disc.pfns$delta_General_SES-mean(abcd.data.disc.pfns$delta_General_SES,na.rm=TRUE))/sd(abcd.data.disc.pfns$delta_General_SES,na.rm=TRUE)
+abcd.data.rep.pfns$delta_General_SES<-(abcd.data.rep.pfns$delta_General_SES-mean(abcd.data.rep.pfns$delta_General_SES,na.rm=TRUE))/sd(abcd.data.rep.pfns$delta_General_SES,na.rm=TRUE)
+
+```
+
+
+
+# Relate the change in exposome to the change in cognition: exp (T2-T0) --> cog (T2-T0)
+```{r}
+mod1<-lmer(delta_PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+delta_General_SES,data=abcd.data.disc.pfns)
+mod2<-lmer(delta_Flanker~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+delta_General_SES,data=abcd.data.disc.pfns)
+mod3<-lmer(delta_Picture~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+delta_General_SES,data=abcd.data.disc.pfns)
+mod4<-lmer(delta_Pattern~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+delta_General_SES,data=abcd.data.disc.pfns)
+mod5<-lmer(delta_Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+delta_General_SES,data=abcd.data.disc.pfns)
+
+
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","Delta Exp-Factor"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/DeltaExpFactor_DeltaCog.doc")
+```
+
+
+# Test mediation models: exp(T0) --> pfns (T0) --> cog (T2)
+```{r}
+summary(lmer(PicVocab_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+PicVocab+General_SES,data=abcd.data.disc.pfns))
+summary(lmer(PicVocab_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN+PicVocab+General_SES,data=abcd.data.disc.pfns))
+
+bs_indir = c()
+for (i in 1:1000){
+  thisSample <- sample(c(1:length(abcd.data.disc.pfns$subjectkey)),length(abcd.data.disc.pfns$subjectkey),replace=TRUE)
+  pathc<-lmer(PicVocab_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+PicVocab+General_SES,data=abcd.data.disc.pfns[thisSample,])
+  pathcp<-lmer(PicVocab_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN+PicVocab+General_SES,data=abcd.data.disc.pfns[thisSample,])
+  indir<-fixef(pathc)[6]-fixef(pathcp)[7]
+  bs_indir <- c(bs_indir,indir)
+}
+t.test(bs_indir,conf.level=0.95)
+
+# data:  bs_indir
+# t = 12.83, df = 999, p-value < 2.2e-16
+# alternative hypothesis: true mean is not equal to 0
+# 95 percent confidence interval:
+#  0.0005603336 0.0007626911
+# sample estimates:
+#    mean of x 
+# 0.0006615123 
+
+
+
+summary(lmer(PicVocab_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+PicVocab+General_SES,data=abcd.data.rep.pfns))
+summary(lmer(PicVocab_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN+PicVocab+General_SES,data=abcd.data.rep.pfns))
+
+bs_indir = c()
+for (i in 1:1000){
+  thisSample <- sample(c(1:length(abcd.data.rep.pfns$subjectkey)),length(abcd.data.rep.pfns$subjectkey),replace=TRUE)
+  pathc<-lmer(PicVocab_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+PicVocab+General_SES,data=abcd.data.rep.pfns[thisSample,])
+  pathcp<-lmer(PicVocab_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN+PicVocab+General_SES,data=abcd.data.rep.pfns[thisSample,])
+  indir<-fixef(pathc)[6]-fixef(pathcp)[7]
+  bs_indir <- c(bs_indir,indir)
+}
+t.test(bs_indir,conf.level=0.95)
+
+
+# data:  bs_indir
+# t = 41.679, df = 999, p-value < 2.2e-16
+# alternative hypothesis: true mean is not equal to 0
+# 95 percent confidence interval:
+#  0.002914187 0.003202159
+# sample estimates:
+#   mean of x 
+# 0.003058173 
+
+
+
+
+
+summary(lmer(Reading_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+Reading+General_SES,data=abcd.data.disc.pfns))
+summary(lmer(Reading_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN+Reading+General_SES,data=abcd.data.disc.pfns))
+
+bs_indir = c()
+for (i in 1:1000){
+  thisSample <- sample(c(1:length(abcd.data.disc.pfns$subjectkey)),length(abcd.data.disc.pfns$subjectkey),replace=TRUE)
+  pathc<-lmer(Reading_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+Reading+General_SES,data=abcd.data.disc.pfns[thisSample,])
+  pathcp<-lmer(Reading_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN+Reading+General_SES,data=abcd.data.disc.pfns[thisSample,])
+  indir<-fixef(pathc)[6]-fixef(pathcp)[7]
+  bs_indir <- c(bs_indir,indir)
+}
+t.test(bs_indir,conf.level=0.95)
+
+# t = 23.216, df = 999, p-value < 2.2e-16
+# alternative hypothesis: true mean is not equal to 0
+# 95 percent confidence interval:
+#  0.001268107 0.001502279
+# sample estimates:
+#   mean of x 
+# 0.001385193 
+
+
+
+summary(lmer(Reading_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+Reading+General_SES,data=abcd.data.rep.pfns))
+summary(lmer(Reading_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN+Reading+General_SES,data=abcd.data.rep.pfns))
+
+bs_indir = c()
+for (i in 1:1000){
+  thisSample <- sample(c(1:length(abcd.data.rep.pfns$subjectkey)),length(abcd.data.rep.pfns$subjectkey),replace=TRUE)
+  pathc<-lmer(Reading_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+Reading+General_SES,data=abcd.data.rep.pfns[thisSample,])
+  pathcp<-lmer(Reading_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN+Reading+General_SES,data=abcd.data.rep.pfns[thisSample,])
+  indir<-fixef(pathc)[6]-fixef(pathcp)[7]
+  bs_indir <- c(bs_indir,indir)
+}
+t.test(bs_indir,conf.level=0.95)
+
+# data:  bs_indir
+# t = 30.489, df = 999, p-value < 2.2e-16
+# alternative hypothesis: true mean is not equal to 0
+# 95 percent confidence interval:
+#  0.001603315 0.001823897
+# sample estimates:
+#   mean of x 
+# 0.001713606 
+```
+
+
+# Plot histograms of the general exposome factor
+```{r}
+hist(abcd.data.disc.pfns$General_SES)
+hist(abcd.data.rep.pfns$General_SES)
+```
+
+
+
