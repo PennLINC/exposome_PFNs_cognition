@@ -16,13 +16,12 @@ This markdown file...
 # Step 2: Ridge regression models to predict exposome scores from multivariate patterns of PFN topography
 Here we will train and test ridge regression models using PFN topography to predict exposome scores.
 
-### 2.1	Setup
-Use the function get_data_for_ridge.R to prepare a csv file that will be used to conduct the ridge regression. 
 
-### 2.2	Ridge Regressions: General Workflow and Notes
+### 2.1	General Workflow and Notes
 
 This is the general format for running ridge regressions using PFN topography:
 
+- Use a "get_data_for_ridge" script to prepare a csv file of the data to be used in the ridge regression
 - Use a "submit" script to submit CUBIC jobs that will run the ridge regressions
 - This will call a wrapper script ("proc_predict") that will call two scripts:
       - a preprocessing script ("preprocess")
@@ -35,6 +34,9 @@ Note #2: If you want to change the output directories for all the results to lan
 Note #3: Covariates for age, sex, head motion, and ABCD site are regressed out of all models
 
 
-### 2.3 Matched Samples Ridge Regression
+### 2.3    Using the multivariate pattern of PFN topography to predict exp-factor
 
-This “matched samples” version of the ridge regressions will train on one sub-sample of the ABCD data (also referred to as the “Discovery” sub-sample) and test on the other (also referred to as the “Replication” sub-sample), and vice versa. 
+This version of the ridge regressions will train on one sub-sample of the ABCD data (also referred to as the “Discovery” sub-sample) and test on the other (also referred to as the “Replication” sub-sample), and vice versa. 
+
+get_data_for_ridge_expfactor.R
+
