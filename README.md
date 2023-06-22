@@ -24,8 +24,8 @@ This is the general format for running ridge regressions using PFN topography:
 - Use a "get_data_for_ridge" script to prepare a csv file of the data to be used in the ridge regression
 - Use a "submit" script to submit CUBIC jobs that will run the ridge regressions
 - This will call a wrapper script ("proc_predict") that will call two scripts:
-            - a preprocessing script ("preprocess")
-            - a predictive modeling script ("predict")
+  - a preprocessing script ("preprocess")
+  - a predictive modeling script ("predict")
 
 Note #1: the "submit" scirpts will submit separate jobs for each of the 17 PFNs (to run individual network ridge regressions) and the "submit_all" scripts will run ridge regressions using all the PFNs together (vertex-wise loadings for each PFN are concatenated). Note that these "submit_all" CUBIC jobs need a lot more power than for the independent PFN models so the GB request is higher.
 
