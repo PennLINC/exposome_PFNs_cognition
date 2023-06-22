@@ -35,6 +35,7 @@ library(ggtext)
 library(sjPlot)
 devtools::install_github("johannesbjork/LaCroixColoR")
 library(LaCroixColoR)
+library(Gmisc)
 ```
 
 
@@ -132,6 +133,29 @@ abcd.data.rep$interview_age<-as.numeric(abcd.data.rep$interview_age)
 ```
 
 
+# Make a demographics table
+```{r}
+demo_table <- abcd.data %>%
+  mutate(matched_group = factor(matched_group, levels = 1:2, labels = c("Discovery", "Replication"))) %>%
+#subset(matched_group<3) %>%
+  set_column_labels(interview_age = "Age (Months)",
+                    sex = "Sex",
+                    race.6level = "Race",
+                    household.income = "Household Income",
+                    high.educ = "Parent Education") %>%
+getDescriptionStatsBy(interview_age, 
+                        sex,
+                        household.income,
+                        race.6level,
+                        high.educ,
+                        add_total_col = TRUE, statistics=TRUE,
+                        by = matched_group)
+
+demo_table
+```
+
+
+
 # Z-score everything, separately in disc. and rep. datasets (note: it's always important to do this z-scoring separately in each of our samples since later on we will be using these datasets as training vs. test sets and don't want to introduce any contamination across our independent samples):
 ```{r}
 abcd.data.disc$PicVocab<-(abcd.data.disc$PicVocab-mean(abcd.data.disc$PicVocab,na.rm=TRUE))/sd(abcd.data.disc$PicVocab,na.rm=TRUE)
@@ -156,6 +180,7 @@ abcd.data$Pattern<-(abcd.data$Pattern-mean(abcd.data$Pattern,na.rm=TRUE))/sd(abc
 abcd.data$Reading<-(abcd.data$Reading-mean(abcd.data$Reading,na.rm=TRUE))/sd(abcd.data$Reading,na.rm=TRUE)
 abcd.data$interview_age<-(abcd.data$interview_age-mean(abcd.data$interview_age,na.rm=TRUE))/sd(abcd.data$interview_age,na.rm=TRUE)
 ```
+
 
 
 
