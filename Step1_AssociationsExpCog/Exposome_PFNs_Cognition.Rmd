@@ -400,7 +400,7 @@ abcd.data.pfns$PFN17<-(abcd.data.pfns$PFN17-mean(abcd.data.pfns$PFN17,na.rm=TRUE
 mod11<-lmer(General_SES~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+PFN1+PFN2+PFN3+PFN4+PFN5+PFN6+PFN7+PFN8+PFN9+PFN10+PFN11+PFN12+PFN13+PFN14+PFN15+PFN16+PFN17,data=abcd.data.disc.pfns)
 mod12<-lmer(General_SES~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+PFN1+PFN2+PFN3+PFN4+PFN5+PFN6+PFN7+PFN8+PFN9+PFN10+PFN11+PFN12+PFN13+PFN14+PFN15+PFN16+PFN17,data=abcd.data.rep.pfns)
 
-tab_model(mod11,mod12,pred.labels = c("Intercept","Age","Sex","Motion","PFN1","PFN2","PFN3","PFN4","PFN5","PFN6","PFN7","PFN8","PFN9","PFN10","PFN11","PFN12","PFN13","PFN14","PFN15","PFN16","PFN17"),dv.labels=c("General SES (Disc)","General SES (Rep)"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/PFNs_ExpBifactor_DiscRep.doc")
+tab_model(mod11,mod12,pred.labels = c("Intercept","Age","Sex","Motion","PFN1","PFN2","PFN3","PFN4","PFN5","PFN6","PFN7","PFN8","PFN9","PFN10","PFN11","PFN12","PFN13","PFN14","PFN15","PFN16","PFN17"),dv.labels=c("Exp-Factor (Disc)","Exp-Factor (Rep)"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/PFNs_ExpBifactor_DiscRep.doc")
 
 
 # Specifically test associations with the total cortical rep of the three fronto-parietal networks (3, 15, 17)
@@ -426,7 +426,7 @@ mod25<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+m
 mod35<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN,data=abcd.data.rep.pfns)
 
 
-tab_model(mod13,mod14,pred.labels = c("Intercept","Age","Sex","Motion","General SES"),dv.labels=c("FPN (Disc)","FPN (Rep)"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/FPN_ExpBifactor_DiscRep.doc")
+tab_model(mod13,mod14,pred.labels = c("Intercept","Age","Sex","Motion","Exp-Factor"),dv.labels=c("FPN (Disc)","FPN (Rep)"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/FPN_ExpBifactor_DiscRep.doc")
 
 tab_model(mod21,mod22,mod23,mod24,mod25,pred.labels = c("Intercept","Age","Sex","Motion","FPN"),dv.labels=c("PicVocab","Flanker","Picture","Pattern","Reading"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/FPN_Cognition_Disc.doc")
 
@@ -612,7 +612,7 @@ tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","Exp
 
 # Next, relate the change in exposome factors from T0 to T2 to the change in cognition from T0 to T2
 ```{r}
-# calculate change in General SES and cognitive scores
+# calculate change in Exp-Factor and cognitive scores
 abcd.data.disc.T0T2$deltaGeneral_SES <- abcd.data.disc.T0T2$General_SES_T2-abcd.data.disc.T0T2$General_SES
 abcd.data.rep.T0T2$deltaGeneral_SES <- abcd.data.rep.T0T2$General_SES_T2-abcd.data.rep.T0T2$General_SES
 abcd.data.T0T2$deltaGeneral_SES <- abcd.data.T0T2$General_SES_T2-abcd.data.T0T2$General_SES
@@ -656,11 +656,11 @@ mod13<-lmer(deltaPicture~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Picture+de
 mod14<-lmer(deltaPattern~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Pattern+deltaGeneral_SES,data=abcd.data.T0T2)
 mod15<-lmer(deltaReading~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Reading+deltaGeneral_SES,data=abcd.data.T0T2)
 
-tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/deltaNIHTBX_deltaExpBifactor_Disc.doc")
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/deltaNIHTBX_deltaExpBifactor_Disc.doc")
 
-tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/deltaNIHTBX_deltaExpBifactor_Rep.doc")
+tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/deltaNIHTBX_deltaExpBifactor_Rep.doc")
 
-tab_model(mod11,mod12,mod13,mod14,mod15,pred.labels = c("Intercept","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/deltaNIHTBX_deltaExpBifactor_FullSample.doc")
+tab_model(mod11,mod12,mod13,mod14,mod15,pred.labels = c("Intercept","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/deltaNIHTBX_deltaExpBifactor_FullSample.doc")
 
 ```
 
@@ -694,9 +694,9 @@ mod8<-lmer(Picture~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Ge
 mod9<-lmer(Pattern~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+screen_time,data=abcd.data.rep.st)
 mod10<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+screen_time,data=abcd.data.rep.st)
 
-tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/NIHTBX_ExpBifactor_Disc_ST.doc")
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/NIHTBX_ExpBifactor_Disc_ST.doc")
 
-tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/NIHTBX_ExpBifactor_Rep_ST.doc")
+tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/NIHTBX_ExpBifactor_Rep_ST.doc")
 
 ```
 
