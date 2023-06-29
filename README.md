@@ -8,10 +8,6 @@ This pipeline will expect that PFNs have already been generated for each partici
 
 This markdown file does data wrangling and analyses to link exposome scores with PFN topography and cognition. Analyses are performed separately in matched discovery and replication samples. This code will also generate the figures and tables for all of these analyses. Sensitivity analyses and stratification analyses are also included here. 
 
-## Expsome_PFNs_Cognition_Longitudinal.Rmd
-
-This markdown file... 
-
 
 # Step 2: Ridge regression models to predict exposome scores from multivariate patterns of PFN topography
 Here we will train and test ridge regression models using PFN topography to predict exposome scores.
