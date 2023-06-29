@@ -6,7 +6,7 @@ This pipeline will expect that PFNs have already been generated for each partici
 
 ## Exposome_PFNs_Cognition.Rmd
 
-This markdown file...
+This markdown file does data wrangling and analyses to link exposome scores with PFN topography and cognition. Analyses are performed separately in matched discovery and replication samples. This code will also generate the figures and tables for all of these analyses. Sensitivity analyses and stratification analyses are also included here. 
 
 ## Expsome_PFNs_Cognition_Longitudinal.Rmd
 
