@@ -4,6 +4,8 @@ output: html_document
 date: '2023-05-04'
 ---
 
+# These analyses are to relate changes in exposome with changes in cognition. Deprecated because we decided not to include these analyses in the manuscript.
+
 
 # Load required packages
 ```{r}
@@ -22,9 +24,6 @@ library(mgcv)
 library(gamm4)
 library(readr)
 library(devtools)
-install_github("jfortin1/neuroCombatData")
-install_github("jfortin1/neuroCombat_Rpackage")
-library(neuroCombat)
 library(R.matlab)
 library(mgcv)
 library(ggplot2)
