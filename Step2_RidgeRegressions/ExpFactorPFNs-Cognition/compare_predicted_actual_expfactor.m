@@ -132,4 +132,37 @@ axis([-0.05 0.05 0 30])
 
 
 
+%% Calculate Variance Explained
+
+% We will use the formula 
+%    1-((RSS-TSS)/TSS)
+%       where RSS = sum(actual-predicted)^2
+%         and TSS = sum(actual-mean(actual))^2
+
+
+RSS_samp1 = sum((actual_ExpFactor_samp1-pred_ExpFactor_samp1).^2);
+RSS_samp2 = sum((actual_ExpFactor_samp2-pred_ExpFactor_samp2).^2);
+
+TSS_samp1 = sum((actual_ExpFactor_samp1-(mean(actual_ExpFactor_samp1))).^2);
+TSS_samp2 = sum((actual_ExpFactor_samp2-(mean(actual_ExpFactor_samp2))).^2);
+
+VarExp_samp1 = 1-(RSS_samp1/TSS_samp1)
+VarExp_samp2 = 1-(RSS_samp2/TSS_samp2)
+
+
+%% Calculate AIC
+
+% Use the formula
+%    AIC = n * ln(RSS/n) + 2*k
+%        where n = the sample size
+%          and k = the number of parameters in the model 
+
+k=1010004; % 59,412 vertices * 17 networks
+n_samp1 = length(actual_ExpFactor_samp1);
+n_samp2 = length(actual_ExpFactor_samp2);
+
+AIC_samp1 = n_samp1 * log(RSS_samp1/n_samp1) + 2*k
+AIC_samp2 = n_samp2 * log(RSS_samp2/n_samp2) + 2*k
+
+
 
