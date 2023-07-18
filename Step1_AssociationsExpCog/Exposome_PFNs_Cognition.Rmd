@@ -24,9 +24,6 @@ library(mgcv)
 library(gamm4)
 library(readr)
 library(devtools)
-install_github("jfortin1/neuroCombatData")
-install_github("jfortin1/neuroCombat_Rpackage")
-library(neuroCombat)
 library(R.matlab)
 library(mgcv)
 library(ggplot2)
@@ -197,7 +194,7 @@ mod4<-lmer(Pattern~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Ge
 mod5<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.disc)
 
 
-tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/NIHTBX_ExpBifactor_Disc.doc")
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/NIHTBX_ExpBifactor_Disc.doc")
 
 ```
 
@@ -216,8 +213,26 @@ mod9<-lmer(Pattern~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Ge
 mod10<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.rep)
 
 
-tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/NIHTBX_ExpBifactor_Rep.doc")
+tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/NIHTBX_ExpBifactor_Rep.doc")
 
+```
+
+# Compute correlations for scatterplots
+```{r}
+cor.test(abcd.data.disc$General_SES,abcd.data.disc$PicVocab)
+cor.test(abcd.data.rep$General_SES,abcd.data.rep$PicVocab)
+
+cor.test(abcd.data.disc$General_SES,abcd.data.disc$Flanker)
+cor.test(abcd.data.rep$General_SES,abcd.data.rep$Flanker)
+
+cor.test(abcd.data.disc$General_SES,abcd.data.disc$Picture)
+cor.test(abcd.data.rep$General_SES,abcd.data.rep$Picture)
+
+cor.test(abcd.data.disc$General_SES,abcd.data.disc$Pattern)
+cor.test(abcd.data.rep$General_SES,abcd.data.rep$Pattern)
+
+cor.test(abcd.data.disc$General_SES,abcd.data.disc$Reading)
+cor.test(abcd.data.rep$General_SES,abcd.data.rep$Reading)
 ```
 
 
@@ -403,7 +418,7 @@ abcd.data.pfns$PFN17<-(abcd.data.pfns$PFN17-mean(abcd.data.pfns$PFN17,na.rm=TRUE
 mod11<-lmer(General_SES~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+PFN1+PFN2+PFN3+PFN4+PFN5+PFN6+PFN7+PFN8+PFN9+PFN10+PFN11+PFN12+PFN13+PFN14+PFN15+PFN16+PFN17,data=abcd.data.disc.pfns)
 mod12<-lmer(General_SES~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+PFN1+PFN2+PFN3+PFN4+PFN5+PFN6+PFN7+PFN8+PFN9+PFN10+PFN11+PFN12+PFN13+PFN14+PFN15+PFN16+PFN17,data=abcd.data.rep.pfns)
 
-tab_model(mod11,mod12,pred.labels = c("Intercept","Age","Sex","Motion","PFN1","PFN2","PFN3","PFN4","PFN5","PFN6","PFN7","PFN8","PFN9","PFN10","PFN11","PFN12","PFN13","PFN14","PFN15","PFN16","PFN17"),dv.labels=c("General SES (Disc)","General SES (Rep)"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/PFNs_ExpBifactor_DiscRep.doc")
+tab_model(mod11,mod12,pred.labels = c("Intercept","Age","Sex","Motion","PFN1","PFN2","PFN3","PFN4","PFN5","PFN6","PFN7","PFN8","PFN9","PFN10","PFN11","PFN12","PFN13","PFN14","PFN15","PFN16","PFN17"),dv.labels=c("Exp-Factor (Disc)","Exp-Factor (Rep)"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/PFNs_ExpBifactor_DiscRep.doc")
 
 
 # Specifically test associations with the total cortical rep of the three fronto-parietal networks (3, 15, 17)
@@ -429,7 +444,7 @@ mod25<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+m
 mod35<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+meanFD+FPN,data=abcd.data.rep.pfns)
 
 
-tab_model(mod13,mod14,pred.labels = c("Intercept","Age","Sex","Motion","General SES"),dv.labels=c("FPN (Disc)","FPN (Rep)"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/FPN_ExpBifactor_DiscRep.doc")
+tab_model(mod13,mod14,pred.labels = c("Intercept","Age","Sex","Motion","Exp-Factor"),dv.labels=c("FPN (Disc)","FPN (Rep)"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/FPN_ExpBifactor_DiscRep.doc")
 
 tab_model(mod21,mod22,mod23,mod24,mod25,pred.labels = c("Intercept","Age","Sex","Motion","FPN"),dv.labels=c("PicVocab","Flanker","Picture","Pattern","Reading"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/FPN_Cognition_Disc.doc")
 
@@ -582,9 +597,9 @@ mod8<-lmer(Picture_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)
 mod9<-lmer(Pattern_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+Pattern,data=abcd.data.rep.T0T2)
 mod10<-lmer(Reading_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+Reading,data=abcd.data.rep.T0T2)
 
-tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","General SES","Baseline PicVocab","Baseline Flanker","Baseline Picture","Baseline Pattern","Baseline Reading"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/T2NIHTBX_GeneralSES_Disc.doc")
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","Exp-Factor","Baseline PicVocab","Baseline Flanker","Baseline Picture","Baseline Pattern","Baseline Reading"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/T2NIHTBX_ExpFactor_Disc.doc")
 
-tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","General SES","Baseline PicVocab","Baseline Flanker","Baseline Picture","Baseline Pattern","Baseline Reading"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/T2NIHTBX_GeneralSES_Rep.doc")
+tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","Exp-Factor","Baseline PicVocab","Baseline Flanker","Baseline Picture","Baseline Pattern","Baseline Reading"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/T2NIHTBX_ExpFactor_Rep.doc")
 
 
 ```
@@ -605,9 +620,9 @@ mod8<-lmer(Picture_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)
 mod9<-lmer(Pattern_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time+Pattern,data=abcd.data.rep.T0T2)
 mod10<-lmer(Reading_T2~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time+Reading,data=abcd.data.rep.T0T2)
 
-tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time","Baseline PicVocab","Baseline Flanker","Baseline Picture","Baseline Pattern","Baseline Reading"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/T2NIHTBX_ExpBifactors_Disc.doc")
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time","Baseline PicVocab","Baseline Flanker","Baseline Picture","Baseline Pattern","Baseline Reading"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/T2NIHTBX_ExpFactor_Disc.doc")
 
-tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time","Baseline PicVocab","Baseline Flanker","Baseline Picture","Baseline Pattern","Baseline Reading"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/T2NIHTBX_ExpBifactors_Rep.doc")
+tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time","Baseline PicVocab","Baseline Flanker","Baseline Picture","Baseline Pattern","Baseline Reading"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/T2NIHTBX_ExpFactor_Rep.doc")
 
 
 ```
@@ -615,7 +630,7 @@ tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","Gen
 
 # Next, relate the change in exposome factors from T0 to T2 to the change in cognition from T0 to T2
 ```{r}
-# calculate change in General SES and cognitive scores
+# calculate change in Exp-Factor and cognitive scores
 abcd.data.disc.T0T2$deltaGeneral_SES <- abcd.data.disc.T0T2$General_SES_T2-abcd.data.disc.T0T2$General_SES
 abcd.data.rep.T0T2$deltaGeneral_SES <- abcd.data.rep.T0T2$General_SES_T2-abcd.data.rep.T0T2$General_SES
 abcd.data.T0T2$deltaGeneral_SES <- abcd.data.T0T2$General_SES_T2-abcd.data.T0T2$General_SES
@@ -659,11 +674,11 @@ mod13<-lmer(deltaPicture~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Picture+de
 mod14<-lmer(deltaPattern~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Pattern+deltaGeneral_SES,data=abcd.data.T0T2)
 mod15<-lmer(deltaReading~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Reading+deltaGeneral_SES,data=abcd.data.T0T2)
 
-tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/deltaNIHTBX_deltaExpBifactor_Disc.doc")
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/deltaNIHTBX_deltaExpBifactor_Disc.doc")
 
-tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/deltaNIHTBX_deltaExpBifactor_Rep.doc")
+tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/deltaNIHTBX_deltaExpBifactor_Rep.doc")
 
-tab_model(mod11,mod12,mod13,mod14,mod15,pred.labels = c("Intercept","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/deltaNIHTBX_deltaExpBifactor_FullSample.doc")
+tab_model(mod11,mod12,mod13,mod14,mod15,pred.labels = c("Intercept","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/deltaNIHTBX_deltaExpBifactor_FullSample.doc")
 
 ```
 
@@ -697,9 +712,9 @@ mod8<-lmer(Picture~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Ge
 mod9<-lmer(Pattern~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+screen_time,data=abcd.data.rep.st)
 mod10<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+screen_time,data=abcd.data.rep.st)
 
-tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/NIHTBX_ExpBifactor_Disc_ST.doc")
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/NIHTBX_ExpBifactor_Disc_ST.doc")
 
-tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","General SES","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/NIHTBX_ExpBifactor_Rep_ST.doc")
+tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/NIHTBX_ExpBifactor_Rep_ST.doc")
 
 ```
 
@@ -810,3 +825,98 @@ tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","Hou
 ```
 
 
+
+## Stratified analyses by race and sex
+
+```{r}
+
+# NOTE: these stratified analyses will be conducted 6 times for each of the following categories from the race.6level variable ("White","Black","Asian","AIAN/NHPI","Other","Mixed")
+
+## WHITE
+mod1<-lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="White",])
+mod2<-lmer(Flanker~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="White",])
+mod3<-lmer(Picture~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="White",])
+mod4<-lmer(Pattern~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="White",])
+mod5<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="White",])
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/RaceStratAnalyses/RaceStrat_White_NIHTBX_ExpBifactor.doc")
+
+
+## BLACK
+mod1<-lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="Black",])
+mod2<-lmer(Flanker~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="Black",])
+mod3<-lmer(Picture~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="Black",])
+mod4<-lmer(Pattern~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="Black",])
+mod5<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="Black",])
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/RaceStratAnalyses/RaceStrat_Black_NIHTBX_ExpBifactor.doc")
+
+
+## ASIAN
+mod1<-lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="Asian",])
+mod2<-lmer(Flanker~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="Asian",])
+mod3<-lmer(Picture~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="Asian",])
+mod4<-lmer(Pattern~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="Asian",])
+mod5<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="Asian",])
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/RaceStratAnalyses/RaceStrat_Asian_NIHTBX_ExpBifactor.doc")
+
+
+# AIAN/NHPI
+mod1<-lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="AIAN/NHPI",])
+mod2<-lmer(Flanker~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="AIAN/NHPI",])
+mod3<-lmer(Picture~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="AIAN/NHPI",])
+mod4<-lmer(Pattern~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="AIAN/NHPI",])
+mod5<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="AIAN/NHPI",])
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/RaceStratAnalyses/RaceStrat_AIANNHPI_NIHTBX_ExpBifactor.doc")
+
+
+## OTHER
+mod1<-lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="Other",])
+mod2<-lmer(Flanker~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="Other",])
+mod3<-lmer(Picture~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="Other",])
+mod4<-lmer(Pattern~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="Other",])
+mod5<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="Other",])
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/RaceStratAnalyses/RaceStrat_Other_NIHTBX_ExpBifactor.doc")
+
+
+# MIXED
+mod1<-lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="Mixed",])
+mod2<-lmer(Flanker~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="Mixed",])
+mod3<-lmer(Picture~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="Mixed",])
+mod4<-lmer(Pattern~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="Mixed",])
+mod5<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$race.6level=="Mixed",])
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/RaceStratAnalyses/RaceStrat_Mixed_NIHTBX_ExpBifactor.doc")
+
+
+
+# MIXED/OTHER (combining for increased n)
+abcd.data$Mixed <- ifelse(abcd.data$race.6level=="Mixed",1,0)
+abcd.data$Other <- ifelse(abcd.data$race.6level=="Other",1,0)
+abcd.data$MixedOther <- abcd.data$Mixed+abcd.data$Other
+mod1<-lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$MixedOther==1,])
+mod2<-lmer(Flanker~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$MixedOther==1,])
+mod3<-lmer(Picture~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$MixedOther==1,])
+mod4<-lmer(Pattern~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$MixedOther==1,])
+mod5<-lmer(Reading~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$MixedOther==1,])
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/RaceStratAnalyses/RaceStrat_MixedOther_NIHTBX_ExpBifactor.doc")
+
+
+
+
+
+# MALE
+mod1<-lmer(PicVocab~interview_age+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$sex_at_birth=="M",])
+mod2<-lmer(Flanker~interview_age+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$sex_at_birth=="M",])
+mod3<-lmer(Picture~interview_age+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$sex_at_birth=="M",])
+mod4<-lmer(Pattern~interview_age+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$sex_at_birth=="M",])
+mod5<-lmer(Reading~interview_age+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$sex_at_birth=="M",])
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/SexStratAnalyses/SexStrat_Male_NIHTBX_ExpBifactor.doc")
+
+
+# FEMALE
+mod1<-lmer(PicVocab~interview_age+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$sex_at_birth=="F",])
+mod2<-lmer(Flanker~interview_age+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$sex_at_birth=="F",])
+mod3<-lmer(Picture~interview_age+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$sex_at_birth=="F",])
+mod4<-lmer(Pattern~interview_age+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$sex_at_birth=="F",])
+mod5<-lmer(Reading~interview_age+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data[abcd.data$sex_at_birth=="F",])
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/SexStratAnalyses/SexStrat_Female_NIHTBX_ExpBifactor.doc")
+
+```
