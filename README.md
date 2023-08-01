@@ -50,7 +50,10 @@ First, use **get_data_for_ridge_expfactor.R** to prepare the data. Then, use **s
 ### 2) **PFNs-ExpFactor_SeparateSamples**
 This is the same as (1) PFNs-ExpFactor except that the Exp-Factor outcome variable is defined separately in the Discovery and Replication samples. The purpose of this analysis is to make sure that there isn't any substantial leakage across our training and testing samples by the fact that the exposome is typically defined in the whole combined sample. 
 
-First, use **get_data_for_ridge_expfactor_separatesamples.R** to prepare the data. Then, use **submit_all_expfactor_SepSamp.py** to submit CUBIC jobs to run the ridge regressions. These scripts will call the wrapper **expfactor_SepSamp_proc_predict.py** which will call **preprocess_expfactor_sepsamp.py** and **predict_matchedsamples.py**. For stats and plotting of the results, use **compare_predicted_actual_expfactor_separatesamples.m**. 
+First, use **get_data_for_ridge_expfactor_separatesamples.R** to prepare the data. Then, use **submit_all_expfactor_SepSamp.py** to submit a CUBIC job to run the ridge regression. This script will call the wrapper **expfactor_SepSamp_proc_predict.py** which will call **preprocess_expfactor_sepsamp.py** and **predict_matchedsamples.py**. For stats and plotting of the results, use **compare_predicted_actual_expfactor_separatesamples.m**. 
 
+### 3) **ExpFactor-Cognition**
+This analysis will use just the single-variable exposome factor (Exp-Factor) to predict cognition across three cognitive domains (General Cognition, Executive Function, and Learning/Memory). 
 
+First, use **get_ExpFactor_features.R** to prepare the data. Then, use **submit_all_ExpFactor.py** to submit CUBIC jobs to run the ridge regressions. This script will call the wrapper **keller_proc_predict_ExpFactor.py** which will call **preprocess_ExpFactor.py** and **predict_matchedsamples_ExpFactor.py**. 
 
