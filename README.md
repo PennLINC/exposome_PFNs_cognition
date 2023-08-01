@@ -21,7 +21,7 @@ There are 6 "versions" of ridge regression to be run, each with a different purp
 6. **PFNs-ExpFactor_SeparateSamples**: Use PFN topography to predict Exp-Factor, where Exp-Factor is defined separately in each of the two samples (Discovery and Replication) -- this is a sensitivity analysis to make sure that there's no significant leakage across samples
 
 
-### 2.1	General Workflow and Notes
+## 2.1	General Workflow and Notes
 
 This is the general format for running ridge regressions using PFN topography:
 
@@ -39,9 +39,9 @@ Note #3: Covariates for age, sex, head motion, and ABCD site are regressed out o
 
 All six versions of the ridge regressions will train on one sub-sample of the ABCD data (also referred to as the “Discovery” sub-sample) and test on the other (also referred to as the “Replication” sub-sample), and vice versa. 
 
-### 2.2 Notes specific to each version of the ridge regression
+## 2.2 Notes specific to each version of the ridge regression
 
-**PFNs-ExpFactor**
+### **PFNs-ExpFactor**
 Here we use the multivariate pattern of PFN topography to predict exp-factor
 
 First, use **get_data_for_ridge_expfactor.R** to prepare the data. Then, use **submit_all_expfactor.py** and **submit_expfactor.py** to submit CUBIC jobs to run the ridge regressions. These scripts will call the wrapper **expfactor_proc_predict.py** which will call **preprocess_expfactor.py** and **predict_matchedsamples.py**
