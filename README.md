@@ -42,8 +42,15 @@ All six versions of the ridge regressions will train on one sub-sample of the AB
 
 ## 2.2 Notes specific to each version of the ridge regression
 
-### **PFNs-ExpFactor**
+### 1) **PFNs-ExpFactor**
 Here we use the multivariate pattern of PFN topography to predict exp-factor
 
-First, use **get_data_for_ridge_expfactor.R** to prepare the data. Then, use **submit_all_expfactor.py** and **submit_expfactor.py** to submit CUBIC jobs to run the ridge regressions. These scripts will call the wrapper **expfactor_proc_predict.py** which will call **preprocess_expfactor.py** and **predict_matchedsamples.py**
+First, use **get_data_for_ridge_expfactor.R** to prepare the data. Then, use **submit_all_expfactor.py** and **submit_expfactor.py** to submit CUBIC jobs to run the ridge regressions. These scripts will call the wrapper **expfactor_proc_predict.py** which will call **preprocess_expfactor.py** and **predict_matchedsamples.py**. For stats and plotting of the results, use **compare_predicted_actual_expfactor.m**. 
+
+### 2) **PFNs-ExpFactor_SeparateSamples**
+This is the same as (1) PFNs-ExpFactor except that the Exp-Factor outcome variable is defined separately in the Discovery and Replication samples. The purpose of this analysis is to make sure that there isn't any substantial leakage across our training and testing samples by the fact that the exposome is typically defined in the whole combined sample. 
+
+First, use **get_data_for_ridge_expfactor_separatesamples.R** to prepare the data. Then, use **submit_all_expfactor_SepSamp.py** to submit CUBIC jobs to run the ridge regressions. These scripts will call the wrapper **expfactor_SepSamp_proc_predict.py** which will call **preprocess_expfactor_sepsamp.py** and **predict_matchedsamples.py**. For stats and plotting of the results, use **compare_predicted_actual_expfactor_separatesamples.m**. 
+
+
 
