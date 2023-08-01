@@ -57,3 +57,12 @@ This analysis will use just the single-variable exposome factor (Exp-Factor) to 
 
 First, use **get_ExpFactor_features.R** to prepare the data. Then, use **submit_all_ExpFactor.py** to submit CUBIC jobs to run the ridge regressions. This script will call the wrapper **keller_proc_predict_ExpFactor.py** which will call **preprocess_ExpFactor.py** and **predict_matchedsamples_ExpFactor.py**. 
 
+### 4) **ExpFactorPFNs-Cognition**
+This analysis will use both the single-variable exposome factor (Exp-Factor) and the multivariate pattern of PFN topography to predict cognition across three cognitive domains (General Cognition, Executive Function, and Learning/Memory). 
+
+No need to prepare the data, we've got everything we need already! Use **submit_all_ExpFactor_PFNs.py** to submit CUBIC jobs to run the ridge regressions. This script will call the wrapper **keller_proc_predict_ExpFactor_PFNs.py** which will call **preprocess_ExpFactor_PFNs.py** and **predict_matchedsamples_ExpFactor_PFNs.py**. 
+
+For stats and plotting for both (3) and (4), our goal is to compare the models to one another using a few different metrics (r, AIC, BIC). The script to use is **compare_predicted_actual_PFNvsExp_Cognition.m**. 
+
+
+
