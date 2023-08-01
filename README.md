@@ -37,10 +37,12 @@ Note #2: If you want to change the output directories for all the results to lan
 
 Note #3: Covariates for age, sex, head motion, and ABCD site are regressed out of all models
 
+All six versions of the ridge regressions will train on one sub-sample of the ABCD data (also referred to as the “Discovery” sub-sample) and test on the other (also referred to as the “Replication” sub-sample), and vice versa. 
 
-### 2.3    Using the multivariate pattern of PFN topography to predict exp-factor
+### 2.2 Notes specific to each version of the ridge regression
 
-This version of the ridge regressions will train on one sub-sample of the ABCD data (also referred to as the “Discovery” sub-sample) and test on the other (also referred to as the “Replication” sub-sample), and vice versa. 
+**PFNs-ExpFactor**
+Here we use the multivariate pattern of PFN topography to predict exp-factor
 
 First, use **get_data_for_ridge_expfactor.R** to prepare the data. Then, use **submit_all_expfactor.py** and **submit_expfactor.py** to submit CUBIC jobs to run the ridge regressions. These scripts will call the wrapper **expfactor_proc_predict.py** which will call **preprocess_expfactor.py** and **predict_matchedsamples.py**
 
