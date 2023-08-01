@@ -13,12 +13,13 @@ This markdown file does data wrangling and analyses to link exposome scores with
 Here we will train and test ridge regression models using PFN topography to predict exposome scores.
 
 There are 6 "versions" of ridge regression to be run, each with a different purpose but the same exact coding framework (described in 2.1):
-1. **ExpFactor-Cognition**: Use the Exposome Factor ("Exp-Factor") to predict cognition (all at baseline T0 assessment)
-2. **ExpFactorPFNs-Cognition**: Use the Exposome Factor ("Exp-Factor") plus the multivariate pattern of personalized functional network ("PFN") topography to predict cognition (all at baseline T0 assessment)
-3. **ExpFactorPFNs-T2CogPred**: Use the Exp-Factor and PFN topography to predict cognition at time 2 ("T2") while controlling for baseline cognitive performance
-4. **PFNs-CogRegExp**: Use PFN topography to predict a pseudo-variable of cognition with Exposome Factor regressed out (all at baseline T0 assessment)
-5. **PFNs-ExpFactor**: Use PFN topography to predict Exp-Factor (all at baseline T0 assessment)
-6. **PFNs-ExpFactor_SeparateSamples**: Use PFN topography to predict Exp-Factor, where Exp-Factor is defined separately in each of the two samples (Discovery and Replication) -- this is a sensitivity analysis to make sure that there's no significant leakage across samples
+1. **PFNs-ExpFactor**: Use PFN topography to predict Exp-Factor (all at baseline T0 assessment)
+2. **PFNs-ExpFactor_SeparateSamples**: Use PFN topography to predict Exp-Factor, where Exp-Factor is defined separately in each of the two samples (Discovery and Replication) -- this is a sensitivity analysis to make sure that there's no significant leakage across samples
+3. **ExpFactor-Cognition**: Use the Exposome Factor ("Exp-Factor") to predict cognition (all at baseline T0 assessment)
+4. **ExpFactorPFNs-Cognition**: Use the Exposome Factor ("Exp-Factor") plus the multivariate pattern of personalized functional network ("PFN") topography to predict cognition (all at baseline T0 assessment)
+5. **ExpFactorPFNs-T2CogPred**: Use the Exp-Factor and PFN topography to predict cognition at time 2 ("T2") while controlling for baseline cognitive performance
+6. **PFNs-CogRegExp**: Use PFN topography to predict a pseudo-variable of cognition with Exposome Factor regressed out (all at baseline T0 assessment)
+
 
 
 ## 2.1	General Workflow and Notes
