@@ -10,7 +10,7 @@ This markdown file does data wrangling and analyses to link exposome scores with
 
 
 # Step 2: Ridge regression models to predict exposome scores from multivariate patterns of PFN topography
-Here we will train and test ridge regression models using PFN topography to predict exposome scores.
+Here we will train and test ridge regression models using multivariate patterns of PFN topography. We use the same core coding framework and approach to run many different versions of these ridge regressions, summarized below:
 
 There are 6 "versions" of ridge regression to be run, each with a different purpose but the same exact coding framework (described in 2.1):
 1. **PFNs-ExpFactor**: Use PFN topography to predict Exp-Factor (all at baseline T0 assessment)
@@ -38,7 +38,7 @@ Note #2: If you want to change the output directories for all the results to lan
 
 Note #3: Covariates for age, sex, head motion, and ABCD site are regressed out of all models
 
-All six versions of the ridge regressions will train on one sub-sample of the ABCD data (also referred to as the “Discovery” sub-sample) and test on the other (also referred to as the “Replication” sub-sample), and vice versa. 
+All versions of the ridge regressions will train on one sub-sample of the ABCD data (also referred to as the “Discovery” sub-sample) and test on the other (also referred to as the “Replication” sub-sample), and vice versa. 
 
 ## 2.2 Notes specific to each version of the ridge regression
 
