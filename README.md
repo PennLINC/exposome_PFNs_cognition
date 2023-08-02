@@ -78,4 +78,5 @@ Importantly, because we're predicting cognition longitudinally here, we need to 
 ### 6) **PFNs-CogRegExp** 
 Use PFN topography to predict a pseudo-variable of cognition with Exposome Factor regressed out (all at baseline T0 assessment)
 
+No need to prepare the data, we've got everything we need already! Use **submit_all_CogRegExp.py** to submit CUBIC jobs to run the ridge regressions. This script will call the wrapper **CogRegExp_proc_predict.py** which will call **preprocess_CogRegExp.py** and **predict_matchedsamples.py**. Stats and plotting are done with **compare_predicted_actual_CogRegExp.m**.
 
