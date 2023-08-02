@@ -32,13 +32,14 @@ This is the general format for running ridge regressions using PFN topography:
   - a preprocessing script ("preprocess")
   - a predictive modeling script ("predict")
 
-Note #1: the "submit" scirpts will submit separate jobs for each of the 17 PFNs (to run individual network ridge regressions) and the "submit_all" scripts will run ridge regressions using all the PFNs together (vertex-wise loadings for each PFN are concatenated). Note that these "submit_all" CUBIC jobs need a lot more power than for the independent PFN models so the GB request is higher.
+The "submit" scirpts will submit separate jobs for each of the 17 PFNs (to run individual network ridge regressions) and the "submit_all" scripts will run ridge regressions using all the PFNs together (vertex-wise loadings for each PFN are concatenated). Note that these "submit_all" CUBIC jobs need a lot more power than for the independent PFN models so the GB request is higher.
 
-Note #2: If you want to change the output directories for all the results to land in, change the “homedir” variable and “tempdir” variables in the submit script and change the “workingdir” in the proc_predict wrapper script. The homedir is meant to be the outermost folder containing the scripts, results folder, and temporary files folder. The tempdir folder will store intermediate files used during the process (I like to save everything out to check, but they’re considered “temp” because they can be deleted afterward if needed). The workingdir folder is the results directory, which will auto populate with folders for each PFN. Because python likes to 0-index, the folders will be labeled “0_network”… “16_network” and there will be a folder for “all_network” containing the results of submit_all.py. 
+If you want to change the output directories for all the results to land in, change the “homedir” variable and “tempdir” variables in the submit script and change the “workingdir” in the proc_predict wrapper script. The homedir is meant to be the outermost folder containing the scripts, results folder, and temporary files folder. The tempdir folder will store intermediate files used during the process (I like to save everything out to check, but they’re considered “temp” because they can be deleted afterward if needed). The workingdir folder is the results directory, which will auto populate with folders for each PFN. Because python likes to 0-index, the folders will be labeled “0_network”… “16_network” and there will be a folder for “all_network” containing the results of submit_all.py. 
 
-Note #3: Covariates for age, sex, head motion, and ABCD site are regressed out of all models
+Note that covariates for age, sex, head motion, and ABCD site are regressed out of all models. All versions of the ridge regressions will train on one sub-sample of the ABCD data (also referred to as the “Discovery” sub-sample) and test on the other (also referred to as the “Replication” sub-sample), and vice versa. 
 
-All versions of the ridge regressions will train on one sub-sample of the ABCD data (also referred to as the “Discovery” sub-sample) and test on the other (also referred to as the “Replication” sub-sample), and vice versa. 
+The first step (getting the data prepared for the ridge regression) is easiest to run locally in RStudio, since the goal is simply to re-organize and pare down some very lightweight data files. The steps of the ridge regression from submit --> proc_predict --> preprocess --> predict are all meant to be run on CUBIC as submitted jobs. After running the ridge regressions, I copy the results files back to my local machine to run the lightweight stats/plotting scripts using the Matlab GUI. 
+
 
 ## 2.2 Notes specific to each version of the ridge regression
 
