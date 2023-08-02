@@ -62,7 +62,20 @@ This analysis will use both the single-variable exposome factor (Exp-Factor) and
 
 No need to prepare the data, we've got everything we need already! Use **submit_all_ExpFactor_PFNs.py** to submit CUBIC jobs to run the ridge regressions. This script will call the wrapper **keller_proc_predict_ExpFactor_PFNs.py** which will call **preprocess_ExpFactor_PFNs.py** and **predict_matchedsamples_ExpFactor_PFNs.py**. 
 
-For stats and plotting for both (3) and (4), our goal is to compare the models to one another using a few different metrics (r, AIC, BIC). The script to use is **compare_predicted_actual_PFNvsExp_Cognition.m**. 
+For stats and plotting for both (3) and (4), our goal is to compare the models to one another using a few different metrics (r, AIC, BIC). The script to use is **compare_predicted_actual_PFNvsExp_Cognition.m**. Note that the results for the PFNs-only model at baseline is drawn from our previous work (see keller_networks Github repo).
 
+
+### 5) **ExpFactorPFNs-T2CogPred**
+
+This analysis will use both the single-variable exposome factor and the multivariate pattern of PFN topography to predict cognition  at time 2 ("T2") while controlling for baseline cognitive performance. Because we're predicting longitudinal cognition here, we will use 5 individual cognitive tasks that were collected at both baseline (T0) and two-year (T2) timepoints. The 5 tasks as as follows, with parentheses for the abbreviated nicknames used in the code: Picture Vocabulary (PicVocab), Flanker, Picture Sequence Memory (Picture), Pattern Completion (Pattern), and Reading Recognition (Reading).
+
+This analysis actually contains 3 separate ridge regression models: Model 1 uses only the single-variable Exp-Factor, Model 2 uses just the PFN topography, and Model 3 uses Exp-Factor plus PFN topography. This mirrors the analysis we've already conducted at baseline to predict the three cognitive domains. 
+
+First, use **get_T2CogPred_features.R** to prepare the data. Then, use each of the three submit_all files to submit the three different Models described above: **submit_all_T2CogPred_ExpFactor.py**, **submit_all_T2CogPred_PFNs.py**, and **submit_all_T2CogPred_ExpFactorPFNs.py**. These scripts will call the following wrapper scripts accordingly: **T2CogPred_proc_predict_ExpFactor.py**, **T2CogPred_proc_predict_PFNs.py**, and **T2CogPred_proc_predict_ExpFactorPFNs.py**.
+
+Importantly, because we're predicting cognition longitudinally here, we need to account for baseline cognitive performance as a covariate in each of our models. This means we need a separate preprocess script for each version that will covary for the appropriate task. Because we have 5 cognitive tasks and 3 models, this means there are 15 separate preprocess scripts in this folder (I won't name them all here, but the naming scheme e.g. **T2CogPred_preprocess_ExpFactor_PicVocab.py** makes it clear which one is which). The predict files don't change here, so they're all the same as described above. 
+
+### 6) **PFNs-CogRegExp** 
+Use PFN topography to predict a pseudo-variable of cognition with Exposome Factor regressed out (all at baseline T0 assessment)
 
 
