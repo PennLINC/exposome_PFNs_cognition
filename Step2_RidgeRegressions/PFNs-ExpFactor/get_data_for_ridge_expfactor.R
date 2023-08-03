@@ -1,3 +1,4 @@
+# This script will create a csv of the data we need to run the ridge regressions
 
 # First load in the spatial extent of each PFN (they're in order, 1-17)
 # Merging the other data with this file will ensure that we only select subjects for whom we have PFNs generated
