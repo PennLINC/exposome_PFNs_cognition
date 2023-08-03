@@ -61,4 +61,3 @@ abcd.data.for.ridge.complete<-abcd.data.for.ridge[complete.cases(abcd.data.for.r
 abcd.data.for.ridge.complete$subjectkey <- gsub(pattern="NDAR_",replacement="",abcd.data.for.ridge.complete$subjectkey)
 
 write.csv(abcd.data.for.ridge.complete,"/Users/askeller/Documents/ExposomeAnalyses/PFNs_ExpFactor_Ridge/data_for_ridge_expfactor.csv")
-# n=7,460
