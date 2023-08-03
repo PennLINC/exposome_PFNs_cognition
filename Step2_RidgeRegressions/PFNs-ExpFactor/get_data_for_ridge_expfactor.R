@@ -1,6 +1,6 @@
 
 # First load in the spatial extent of each PFN (they're in order, 1-17)
-# Then merge with the same datasets as above (NIH toolbox, trauma, etc.)
+# Merging the other data with this file will ensure that we only select subjects for whom we have PFNs generated
 pfn_sizes <- read.csv("/Users/askeller/Documents/Kellernet_PrelimAnalysis/All_PFN_sizes.csv")
 # Change PFN column names so they're sensible
 colnames(pfn_sizes)<-c("subjectkey","PFN1","PFN2","PFN3","PFN4","PFN5","PFN6","PFN7","PFN8","PFN9","PFN10","PFN11","PFN12","PFN13","PFN14","PFN15","PFN16","PFN17")
