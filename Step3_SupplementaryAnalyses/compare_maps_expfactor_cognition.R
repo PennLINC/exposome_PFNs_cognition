@@ -1,5 +1,3 @@
-
-
 # Load in libraries
 library(gifti)
 library(R.matlab)
@@ -11,14 +9,11 @@ library(randomcoloR)
 library(ggforce)
 library(mgcv)
 
-
-
 # Load in prediction accuracy for Exp Factor by PFNs
 ExpFactorMap <- readMat('/Users/askeller/Documents/ExposomeAnalyses/PFNs_ExpFactor_Ridge/results_by_network/pred_acc_by_PFN_ExpFactor.mat')$Rvals.byPFN;
 
 # Load in prediction accuracy for Cognition by PFNs
 CognitionMap <- read.csv('/Users/askeller/Documents/Kellernet_PrelimAnalysis/SpinTests/pred_acc_by_PFN.csv')$PC1
-
 
 # How correlated are these vectors? 
 # r=0.933, p-value = 4.842e-08
@@ -41,6 +36,7 @@ PFNs_hardparcel_SubtractedMap <- PFNs_hardparcel
 PFNs_hardparcel_SubtractedMap$data$cortex_left <- SubtractedMap_lh
 PFNs_hardparcel_SubtractedMap$data$cortex_right <- SubtractedMap_rh
 
+# Write out the cifti file to be viewed in connectome workbench
 write_cifti(PFNs_hardparcel_SubtractedMap,'/Users/askeller/Documents/Kellernet_PrelimAnalysis/CogExpSubtractedMap')
 
 
