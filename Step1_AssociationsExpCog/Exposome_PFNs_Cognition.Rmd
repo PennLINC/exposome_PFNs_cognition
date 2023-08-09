@@ -925,7 +925,7 @@ tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Exp-Factor
 
 # Check: how correlated is the general exposome score with typical measures of SES?
 ```{r}
-summary(aov(General_SES~household.income+high.educ,data=abcd.data))
+summary(aov(General_SES~interview_age+sex_at_birth+household.income+high.educ,data=abcd.data))
 
 # Make some plots:
 png("/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/Figures/ExpFactor_HouseholdIncome.png",
