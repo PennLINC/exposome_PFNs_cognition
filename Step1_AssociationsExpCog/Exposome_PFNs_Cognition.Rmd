@@ -501,8 +501,6 @@ colnames(ksads.adhd.anx)<-c("subjectkey","ADHD","GAD")
 
 # Merge dataframes
 psych.data<-merge(psychMed_baseline,ksads.adhd.anx,by="subjectkey")
-abcd.data.disc.pfns.psych <- merge(abcd.data.disc.pfns,psych.data,by="subjectkey")
-abcd.data.rep.pfns.psych <- merge(abcd.data.rep.pfns,psych.data,by="subjectkey")
 abcd.data.disc.psych <- merge(abcd.data.disc,psych.data,by="subjectkey")
 abcd.data.rep.psych <- merge(abcd.data.rep,psych.data,by="subjectkey")
 abcd.data.disc.T0T2.psych <- merge(abcd.data.disc.T0T2,psych.data,by="subjectkey")
