@@ -2,6 +2,10 @@
 Code for the project relating exposome factors to PFN topography and cognition in ABCD, led by Arielle Keller.
 This pipeline will expect that PFNs have already been generated for each participant using NMF. Details and code to accomplish this are documented at https://github.com/ZaixuCui/pncSingleFuncParcel
 
+# Step 0: Calculate the exposome
+R code **ABCD_exposome_script.R** is used to prepare data for Mplus. Longitudinal bifactor analysis is then applied to this data using Mplus. Mplus output for the exposome scores calculated in our paper is provided in **longitudinal_abcd_exposome_esem_full_sample_7f_2april2023.out**.
+
+
 # Step 1: Associations between exposome and cognition
 
 ## Exposome_PFNs_Cognition.Rmd
