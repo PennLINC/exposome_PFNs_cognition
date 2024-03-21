@@ -90,3 +90,13 @@ Use PFN topography to predict a pseudo-variable of cognition with Exposome Facto
 No need to prepare the data, we've got everything we need already! Use **submit_all_CogRegExp.py** to submit CUBIC jobs to run the ridge regressions. This script will call the wrapper **CogRegExp_proc_predict.py** which will call **preprocess_CogRegExp.py** and **predict_matchedsamples.py**. Stats and plotting are done with **compare_predicted_actual_CogRegExp.m**.
 
 # Step 3: Supplementary Analyses
+Miscellaneous additional analyses that were included in the paper.
+
+## **DeltaExposome_DeltaCognition**
+This Rmarkdown will perform the analysis comparing the change in exposome (delta exposome) to the change in cognition (delta cognition) after accounting for baseline scores.
+
+## **tbi_extracurriculars.R**
+Computes the correlation between extracurricular activities and TBIs
+
+## **compare_maps_expfactor_cognition**
+Compares the brain maps of prediction accuracy by PFN for predictions of exposome (Exp-Factor) and predictions of cognition (General Cognition)
