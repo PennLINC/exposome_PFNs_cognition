@@ -16,14 +16,15 @@ This markdown file does data wrangling and analyses to link exposome scores with
 # Step 2: Ridge regression models to predict exposome scores from multivariate patterns of PFN topography
 Here we will train and test ridge regression models using multivariate patterns of PFN topography. We use the same core coding framework and approach to run many different versions of these ridge regressions, summarized below:
 
-There are 6 "versions" of ridge regression to be run, each with a different purpose but the same exact coding framework (described in 2.1):
+There are 8 "versions" of ridge regression to be run, each with a different purpose but the same exact coding framework (described in 2.1):
 1. **PFNs-ExpFactor**: Use PFN topography to predict Exp-Factor (all at baseline T0 assessment)
 2. **PFNs-ExpFactor_SeparateSamples**: Use PFN topography to predict Exp-Factor, where Exp-Factor is defined separately in each of the two samples (Discovery and Replication) -- this is a sensitivity analysis to make sure that there's no significant leakage across samples
 3. **ExpFactor-Cognition**: Use the Exposome Factor ("Exp-Factor") to predict cognition (all at baseline T0 assessment)
 4. **ExpFactorPFNs-Cognition**: Use the Exposome Factor ("Exp-Factor") plus the multivariate pattern of personalized functional network ("PFN") topography to predict cognition (all at baseline T0 assessment)
 5. **ExpFactorPFNs-T2CogPred**: Use the Exp-Factor and PFN topography to predict cognition at time 2 ("T2") while controlling for baseline cognitive performance
 6. **PFNs-CogRegExp**: Use PFN topography to predict a pseudo-variable of cognition with Exposome Factor regressed out (all at baseline T0 assessment)
-
+7. **PFNs-ADI**: Use PFN topography to predict socio-economic status as measured by areal deprivation index (ADI)
+8. **TCR-Cognition**: Use total cortical representation (TCR) of each PFN to predict cognition
 
 
 ## 2.1	General Workflow and Notes
@@ -88,6 +89,13 @@ Importantly, because we're predicting cognition longitudinally here, we need to 
 Use PFN topography to predict a pseudo-variable of cognition with Exposome Factor regressed out (all at baseline T0 assessment)
 
 No need to prepare the data, we've got everything we need already! Use **submit_all_CogRegExp.py** to submit CUBIC jobs to run the ridge regressions. This script will call the wrapper **CogRegExp_proc_predict.py** which will call **preprocess_CogRegExp.py** and **predict_matchedsamples.py**. Stats and plotting are done with **compare_predicted_actual_CogRegExp.m**.
+
+### 7) **PFNs-ADI** 
+Use PFN topography to predict socio-economic status as measured by areal deprivation index (ADI)
+
+### 8) **TCR-Cognition** 
+Use total cortical representation (TCR) of each PFN to predict cognition
+
 
 # Step 3: Supplementary Analyses
 Miscellaneous additional analyses that were included in the paper.
