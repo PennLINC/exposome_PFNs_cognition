@@ -93,8 +93,12 @@ No need to prepare the data, we've got everything we need already! Use **submit_
 ### 7) **PFNs-ADI** 
 Use PFN topography to predict socio-economic status as measured by areal deprivation index (ADI)
 
+To prepare the data, use **get_adi_features.R**. Use **submit_all_adi.py** to submit CUBIC jobs to run the ridge regressions. This script will call the wrapper **adi_proc_predict.py** which will call **preprocess_adi.py** and **predict_matchedsamples.py**. Stats are done with **compare_predicted_actual_adi.m**.
+
 ### 8) **TCR-Cognition** 
 Use total cortical representation (TCR) of each PFN to predict cognition
+
+For this analysis, we will first need to calculate the total cortical representation (TCR) of each PFN. Use **calculate_PFN_TCR.m** to get the TCR of each PFN by summing the loadings for each network across all vertices. Next, prepare the data using **get_TCR_features.R**. Use **submit_all_tcr.py** to submit CUBIC jobs to run the ridge regressions. This script will call the wrapper **keller_proc_predict_tcr.py** which will call **preprocess_tcr.py** and **predict_matchedssamples.py**. Stats are done with **compare_predicted_actual_TCRvsExp_Cognition.m**.
 
 
 # Step 3: Supplementary Analyses
