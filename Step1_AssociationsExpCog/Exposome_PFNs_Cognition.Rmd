@@ -104,8 +104,6 @@ step1 <- merge(nihtb_T0,bifactor_scores_T0[,c("subjectkey",setdiff(colnames(bifa
 step2 <- merge(step1,family_T0[,c("subjectkey",setdiff(colnames(family_T0),colnames(step1)))],by="subjectkey")
 step3 <- merge(step2,site_T0[,c("subjectkey",setdiff(colnames(site_T0),colnames(step2)))],by="subjectkey")
 step4 <- merge(step3,discrep.T0[,c("subjectkey",setdiff(colnames(discrep.T0),colnames(step3)))],by="subjectkey")
-
-# this dataframe is n=11,871 with 58 variables
 ```
 
 
@@ -116,9 +114,6 @@ abcd.data<-step4[,c("subjectkey","matched_group","interview_age","sex","abcd_sit
 abcd.data<-abcd.data[complete.cases(abcd.data),]
 abcd.data.disc<-abcd.data[abcd.data$matched_group==1,]
 abcd.data.rep<-abcd.data[abcd.data$matched_group==2,]
-
-# final full dataframe is n=10,537 with 22 variables
-# Discovery: n=5,139, Replication: n=5,137
 ```
 
 
@@ -181,7 +176,7 @@ abcd.data$interview_age<-(abcd.data$interview_age-mean(abcd.data$interview_age,n
 
 
 
-# Linear mixed effects models to relate general adversity to cognition at baseline (TIME 0) in the DISCOVERY dataset
+# Linear mixed effects models to relate exposome to cognition at baseline (TIME 0) in the DISCOVERY dataset
 ```{r}
 mod1<-lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.disc)
 
@@ -200,7 +195,7 @@ tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","Exp-
 
 
 
-# Linear mixed effects models to relate general adversity to cognition at baseline (TIME 0) in the REPLICATION dataset
+# Linear mixed effects models to relate exposome to cognition at baseline (TIME 0) in the REPLICATION dataset
 ```{r}
 mod6<-lmer(PicVocab~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+General_SES+School+Family_Values+Family_Turmoil+Dense_Urban_Poverty+Extracurriculars+Screen_Time,data=abcd.data.rep)
 
@@ -364,7 +359,6 @@ tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","Exp-
 
 tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","Exp-Factor","Baseline PicVocab","Baseline Flanker","Baseline Picture","Baseline Pattern","Baseline Reading"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/T2NIHTBX_ExpFactor_Rep.doc")
 
-
 ```
 
 
@@ -391,67 +385,12 @@ tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Age","Sex","Exp
 ```
 
 
-# Next, relate the change in exposome factors from T0 to T2 to the change in cognition from T0 to T2
-```{r}
-# calculate change in Exp-Factor and cognitive scores
-abcd.data.disc.T0T2$deltaGeneral_SES <- abcd.data.disc.T0T2$General_SES_T2-abcd.data.disc.T0T2$General_SES
-abcd.data.rep.T0T2$deltaGeneral_SES <- abcd.data.rep.T0T2$General_SES_T2-abcd.data.rep.T0T2$General_SES
-abcd.data.T0T2$deltaGeneral_SES <- abcd.data.T0T2$General_SES_T2-abcd.data.T0T2$General_SES
-
-abcd.data.disc.T0T2$deltaPicVocab <- abcd.data.disc.T0T2$PicVocab_T2-abcd.data.disc.T0T2$PicVocab
-abcd.data.rep.T0T2$deltaPicVocab <- abcd.data.rep.T0T2$PicVocab_T2-abcd.data.rep.T0T2$PicVocab
-abcd.data.T0T2$deltaPicVocab <- abcd.data.T0T2$PicVocab_T2-abcd.data.T0T2$PicVocab
-
-abcd.data.disc.T0T2$deltaFlanker <- abcd.data.disc.T0T2$Flanker_T2-abcd.data.disc.T0T2$Flanker
-abcd.data.rep.T0T2$deltaFlanker <- abcd.data.rep.T0T2$Flanker_T2-abcd.data.rep.T0T2$Flanker
-abcd.data.T0T2$deltaFlanker <- abcd.data.T0T2$Flanker_T2-abcd.data.T0T2$Flanker
-
-abcd.data.disc.T0T2$deltaPicture <- abcd.data.disc.T0T2$Picture_T2-abcd.data.disc.T0T2$Picture
-abcd.data.rep.T0T2$deltaPicture <- abcd.data.rep.T0T2$Picture_T2-abcd.data.rep.T0T2$Picture
-abcd.data.T0T2$deltaPicture <- abcd.data.T0T2$Picture_T2-abcd.data.T0T2$Picture
-
-abcd.data.disc.T0T2$deltaPattern <- abcd.data.disc.T0T2$Pattern_T2-abcd.data.disc.T0T2$Pattern
-abcd.data.rep.T0T2$deltaPattern <- abcd.data.rep.T0T2$Pattern_T2-abcd.data.rep.T0T2$Pattern
-abcd.data.T0T2$deltaPattern <- abcd.data.T0T2$Pattern_T2-abcd.data.T0T2$Pattern
-
-abcd.data.disc.T0T2$deltaReading <- abcd.data.disc.T0T2$Reading_T2-abcd.data.disc.T0T2$Reading
-abcd.data.rep.T0T2$deltaReading <- abcd.data.rep.T0T2$Reading_T2-abcd.data.rep.T0T2$Reading
-abcd.data.T0T2$deltaReading <- abcd.data.T0T2$Reading_T2-abcd.data.T0T2$Reading
-
-
-
-
-mod1<-lmer(deltaPicVocab~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+PicVocab+deltaGeneral_SES,data=abcd.data.disc.T0T2)
-mod2<-lmer(deltaFlanker~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Flanker+deltaGeneral_SES,data=abcd.data.disc.T0T2)
-mod3<-lmer(deltaPicture~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Picture+deltaGeneral_SES,data=abcd.data.disc.T0T2)
-mod4<-lmer(deltaPattern~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Pattern+deltaGeneral_SES,data=abcd.data.disc.T0T2)
-mod5<-lmer(deltaReading~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Reading+deltaGeneral_SES,data=abcd.data.disc.T0T2)
-mod6<-lmer(deltaPicVocab~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+PicVocab+deltaGeneral_SES,data=abcd.data.rep.T0T2)
-mod7<-lmer(deltaFlanker~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Flanker+deltaGeneral_SES,data=abcd.data.rep.T0T2)
-mod8<-lmer(deltaPicture~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Picture+deltaGeneral_SES,data=abcd.data.rep.T0T2)
-mod9<-lmer(deltaPattern~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Pattern+deltaGeneral_SES,data=abcd.data.rep.T0T2)
-mod10<-lmer(deltaReading~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Reading+deltaGeneral_SES,data=abcd.data.rep.T0T2)
-mod11<-lmer(deltaPicVocab~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+PicVocab+deltaGeneral_SES,data=abcd.data.T0T2)
-mod12<-lmer(deltaFlanker~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Flanker+deltaGeneral_SES,data=abcd.data.T0T2)
-mod13<-lmer(deltaPicture~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Picture+deltaGeneral_SES,data=abcd.data.T0T2)
-mod14<-lmer(deltaPattern~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Pattern+deltaGeneral_SES,data=abcd.data.T0T2)
-mod15<-lmer(deltaReading~sex_at_birth+(1|rel_family_id)+(1|abcd_site)+Reading+deltaGeneral_SES,data=abcd.data.T0T2)
-
-tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/deltaNIHTBX_deltaExpBifactor_Disc.doc")
-
-tab_model(mod6,mod7,mod8,mod9,mod10,pred.labels = c("Intercept","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/deltaNIHTBX_deltaExpBifactor_Rep.doc")
-
-tab_model(mod11,mod12,mod13,mod14,mod15,pred.labels = c("Intercept","Sex","Exp-Factor","School","Family Values","Family Turmoil","Dense Urban Poverty","Extracurriculars","Screen Time"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/deltaNIHTBX_deltaExpBifactor_FullSample.doc")
-
-```
-
 
 # get percentage females in both samples
 ```{r}
 sum(abcd.data.disc$sex_at_birth=="F")/dim(abcd.data.disc)[1]
 sum(abcd.data.rep$sex_at_birth=="F")/dim(abcd.data.rep)[1]
 ```
-
 
 
 # Double check that results are not driven by psychotropic medication use:
