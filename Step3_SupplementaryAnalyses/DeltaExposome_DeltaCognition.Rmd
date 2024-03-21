@@ -1,0 +1,151 @@
+---
+title: "DeltaExposome_DeltaCognition"
+output: html_document
+date: '2023-11-29'
+---
+
+# Load required packages
+```{r}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(lsr)
+library(lme4)
+library(lmerTest)
+library(mediation)
+library(ggcorrplot)
+library(corrplot)
+library(RColorBrewer)
+library(glmnet)
+library(mgcv)
+library(gamm4)
+library(readr)
+library(devtools)
+library(R.matlab)
+library(mgcv)
+library(ggplot2)
+library(visreg)
+library(ggtext)
+library(sjPlot)
+library(LaCroixColoR)
+```
+
+
+
+# Load in the bifactor scores
+```{r}
+bifactor_scores<-read.csv("/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/abcd_longitudinal_factor_scores_7f_bifactor.csv")
+colnames(bifactor_scores)[1]<-"subjectkey"
+bifactor_scores_T0 <- bifactor_scores[bifactor_scores$Timepoint=="baseline_year_1_arm_1",]
+bifactor_scores_T2 <- bifactor_scores[bifactor_scores$Timepoint=="2_year_follow_up_y_arm_1",]
+colnames(bifactor_scores_T2)<-c("subjectkey","ID_Timepoint","Timepoint","General_SES_T2","School_T2","Family_Values_T2","Family_Turmoil_T2","Dense_Urban_Poverty_T2","Extracurriculars_T2","Screen_Time_T2","Timepoint_numeric","Site")
+```
+
+
+
+# Load in the cognition data
+```{r}
+nihtb<-read.table("/Users/askeller/Documents/Kellernet_PrelimAnalysis/NihTB/abcd_tbss01.txt",header=TRUE)
+
+# Convert cognitive data to numeric values
+nihtb$nihtbx_flanker_uncorrected <- as.numeric(nihtb$nihtbx_flanker_uncorrected)
+nihtb$nihtbx_picvocab_uncorrected <- as.numeric(nihtb$nihtbx_picvocab_uncorrected)
+nihtb$nihtbx_pattern_uncorrected <- as.numeric(nihtb$nihtbx_pattern_uncorrected)
+nihtb$nihtbx_picture_uncorrected <- as.numeric(nihtb$nihtbx_picture_uncorrected)
+nihtb$nihtbx_reading_uncorrected <- as.numeric(nihtb$nihtbx_reading_uncorrected)
+
+# Extract and rename cognitive variables for baseline data and T2 data
+nihtb_T0 <- nihtb[nihtb$eventname=="baseline_year_1_arm_1",c("subjectkey","nihtbx_picvocab_uncorrected","nihtbx_flanker_uncorrected","nihtbx_pattern_uncorrected","nihtbx_reading_uncorrected","nihtbx_picture_uncorrected")]
+colnames(nihtb_T0)<-c("subjectkey","PicVocab","Flanker","Pattern","Reading","Picture")
+nihtb_T2 <- nihtb[nihtb$eventname=="2_year_follow_up_y_arm_1",c("subjectkey","nihtbx_picvocab_uncorrected","nihtbx_flanker_uncorrected","nihtbx_pattern_uncorrected","nihtbx_reading_uncorrected","nihtbx_picture_uncorrected")]
+colnames(nihtb_T2)<-c("subjectkey","PicVocab_T2","Flanker_T2","Pattern_T2","Reading_T2","Picture_T2")
+
+```
+
+
+
+# Load in Family and Site covariates
+```{r}
+family <-read.table("/Users/askeller/Documents/Kellernet_PrelimAnalysis/ses/acspsw03.txt",header=TRUE)
+family_T0<-family[family$eventname=="baseline_year_1_arm_1",]
+site_info <- readRDS("/Users/askeller/Documents/Kellernet_PrelimAnalysis/DEAP-siteID.rds")
+site_T0<-site_info[site_info$event_name=="baseline_year_1_arm_1",]
+colnames(site_T0)[1]<-"subjectkey"
+```
+
+
+
+# Combine the data into one dataframe
+```{r}
+step1 <- merge(nihtb_T0,bifactor_scores_T0[,c("subjectkey",setdiff(colnames(bifactor_scores_T0),colnames(nihtb_T0)))],by="subjectkey")
+step2 <- merge(step1,family_T0[,c("subjectkey",setdiff(colnames(family_T0),colnames(step1)))],by="subjectkey")
+step3 <- merge(step2,site_T0[,c("subjectkey",setdiff(colnames(site_T0),colnames(step2)))],by="subjectkey")
+step5 <- merge(nihtb_T2,bifactor_scores_T2[,c("subjectkey",setdiff(colnames(bifactor_scores_T2),colnames(nihtb_T2)))],by="subjectkey")
+step6 <- merge(step3,step5[,c("subjectkey",setdiff(colnames(step5),colnames(step3)))],by="subjectkey")
+
+# this dataframe is n=6,530 with 69 variables
+```
+
+
+# Subset the participants with all data available for these analyses
+```{r}
+abcd.data<-step6[,c("subjectkey","interview_age","sex","abcd_site","rel_family_id","race.6level","household.income","high.educ","sex_at_birth","General_SES","School","Family_Values","Family_Turmoil","Dense_Urban_Poverty","Extracurriculars","Screen_Time","PicVocab","Flanker","Picture","Pattern","Reading","General_SES_T2","School_T2","Family_Values_T2","Family_Turmoil_T2","Dense_Urban_Poverty_T2","Extracurriculars_T2","Screen_Time_T2","PicVocab_T2","Flanker_T2","Picture_T2","Pattern_T2","Reading_T2")]
+
+abcd.data<-abcd.data[complete.cases(abcd.data),]
+
+```
+
+
+# Make sure age is numeric
+```{r}
+abcd.data$interview_age<-as.numeric(abcd.data$interview_age)
+```
+
+
+# Calculate changes in Exposome and Cognition:
+```{r}
+# Delta cognition
+abcd.data$delta_PicVocab <- abcd.data$PicVocab_T2 - abcd.data$PicVocab
+abcd.data$delta_Flanker <- abcd.data$Flanker_T2 - abcd.data$Flanker
+abcd.data$delta_Picture <- abcd.data$Picture_T2 - abcd.data$Picture
+abcd.data$delta_Pattern <- abcd.data$Pattern_T2 - abcd.data$Pattern
+abcd.data$delta_Reading <- abcd.data$Reading_T2 - abcd.data$Reading
+
+# Delta exp-factor
+abcd.data$delta_General_SES <- abcd.data$General_SES_T2 - abcd.data$General_SES
+```
+
+
+# adjust change scores by starting scores
+```{r}
+abcd.data$true_exposome_change <- lm(delta_General_SES~General_SES,data=abcd.data)$residuals
+abcd.data$true_PicVocab_change <- lm(delta_PicVocab~PicVocab,data=abcd.data)$residuals
+abcd.data$true_Flanker_change <- lm(delta_Flanker~Flanker,data=abcd.data)$residuals
+abcd.data$true_Picture_change <- lm(delta_Picture~Picture,data=abcd.data)$residuals
+abcd.data$true_Pattern_change <- lm(delta_Pattern~Pattern,data=abcd.data)$residuals
+abcd.data$true_Reading_change <- lm(delta_Reading~Reading,data=abcd.data)$residuals
+```
+
+
+# z-score the change scores
+```{r}
+abcd.data$true_PicVocab_change<-(abcd.data$true_PicVocab_change-mean(abcd.data$true_PicVocab_change,na.rm=TRUE))/sd(abcd.data$true_PicVocab_change,na.rm=TRUE)
+abcd.data$true_Flanker_change<-(abcd.data$true_Flanker_change-mean(abcd.data$true_Flanker_change,na.rm=TRUE))/sd(abcd.data$true_Flanker_change,na.rm=TRUE)
+abcd.data$true_Picture_change<-(abcd.data$true_Picture_change-mean(abcd.data$true_Picture_change,na.rm=TRUE))/sd(abcd.data$true_Picture_change,na.rm=TRUE)
+abcd.data$true_Pattern_change<-(abcd.data$true_Pattern_change-mean(abcd.data$true_Pattern_change,na.rm=TRUE))/sd(abcd.data$true_Pattern_change,na.rm=TRUE)
+abcd.data$true_Reading_change<-(abcd.data$true_Reading_change-mean(abcd.data$true_Reading_change,na.rm=TRUE))/sd(abcd.data$true_Reading_change,na.rm=TRUE)
+```
+
+
+# linear models of change x change
+```{r}
+mod1<-lmer(true_PicVocab_change~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+true_exposome_change,data=abcd.data)
+mod2<-lmer(true_Flanker_change~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+true_exposome_change,data=abcd.data)
+mod3<-lmer(true_Picture_change~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+true_exposome_change,data=abcd.data)
+mod4<-lmer(true_Pattern_change~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+true_exposome_change,data=abcd.data)
+mod5<-lmer(true_Reading_change~interview_age+sex_at_birth+(1|rel_family_id)+(1|abcd_site)+true_exposome_change,data=abcd.data)
+
+
+tab_model(mod1,mod2,mod3,mod4,mod5,pred.labels = c("Intercept","Age","Sex","Delta Exp-Factor"),dv.labels=c("Picture Vocabulary","Flanker","Pic. Sequence Mem.","Pattern Comparison","Reading Recognition"),digits=2,digits.p=2,show.se=TRUE,show.stat=TRUE,string.stat = "t",string.se = "Std. Error",show.intercept=TRUE,show.ci = FALSE, p.adjust="bonferroni",p.style="scientific", file = "/Users/askeller/Documents/ExposomeAnalyses/LongitudinalExpScores/DeltaExpFactor_DeltaCog_True_FullSample_z.doc")
+```
+
