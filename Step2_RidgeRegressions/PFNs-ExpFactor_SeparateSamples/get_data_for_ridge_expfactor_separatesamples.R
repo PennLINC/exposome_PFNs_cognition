@@ -51,4 +51,4 @@ abcd.data.for.ridge<-abcd.data[,c("subjectkey","ExpFactor","matched_group","inte
 abcd.data.for.ridge.complete<-abcd.data.for.ridge[complete.cases(abcd.data.for.ridge),] # makes sure all participants have complete data
 abcd.data.for.ridge.complete$subjectkey <- gsub(pattern="NDAR_",replacement="",abcd.data.for.ridge.complete$subjectkey) # this line fixes the subject ID to be in standard format (as expected by the ridge regression code)
 write.csv(abcd.data.for.ridge.complete,"/Users/askeller/Documents/ExposomeAnalyses/SeparateSamplesExposome/data_for_ridge_expfactor_separatesamples.csv")
-# n=7,460
+
