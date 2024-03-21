@@ -66,6 +66,7 @@ abcd.data.train <- abcd.data.traintest[abcd.data.traintest$matched_group==1,]
 abcd.data.test <- abcd.data.traintest[abcd.data.traintest$matched_group==2,]
 abcd.data.for.ridge<-abcd.data.traintest[,c("subjectkey","thompson_PC1","thompson_PC2","thompson_PC3","matched_group","interview_age","sex","meanFD","abcd_site","rel_family_id","ExpFactor")]
 abcd.data.for.ridge.complete<-abcd.data.for.ridge[complete.cases(abcd.data.for.ridge),]
+abcd.data.for.ridge.complete$subjectkey <- gsub(pattern="NDAR_",replacement="",abcd.data.for.ridge.complete$subjectkey)
 
 exp.data.for.ridge<-abcd.data.for.ridge.complete[,c("subjectkey","ExpFactor")]
 
