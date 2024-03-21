@@ -1,6 +1,6 @@
 # This script will create a csv of the data we need to run the ridge regressions
 # This particular version is set up for the Separate Samples ExpFactor (bifactor scores derived separately in the discovery and replication samples)
-
+library(tidyr)
 
 # First load in the spatial extent of each PFN (they're in order, 1-17) - this is a simple way to restrict our sample to participants who have PFNs generated
 pfn_sizes <- read.csv("/Users/askeller/Documents/Kellernet_PrelimAnalysis/All_PFN_sizes.csv")
